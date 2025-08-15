@@ -1,10 +1,51 @@
-// backend/controllers/cleanupController.js (YENİ DOSYA)
+// backend/controllers/cleanupController.js - TAMAMLANMIŞ VERSİYON
 const db = require('../config/database');
 
 class CleanupController {
+  // ✅ Cleanup istatistikleri (routes'ta kullanılıyor)
+  static async getCleanupStats(req, res) {
+    try {
+      const [duplicateStats] = await db.execute(`
+        SELECT 
+          COUNT(*) as toplamKayit,
+          COUNT(DISTINCT ledKodu) as benzersizLedKodu,
+          (COUNT(*) - COUNT(DISTINCT ledKodu)) as duplicateKayitSayisi,
+          (SELECT COUNT(*) FROM (
+            SELECT ledKodu 
+            FROM Ledler 
+            GROUP BY ledKodu 
+            HAVING COUNT(*) > 1
+          ) as dup) as duplicateGrupSayisi
+        FROM Ledler
+      `);
+
+      const [recentDuplicates] = await db.execute(`
+        SELECT 
+          ledKodu,
+          COUNT(*) as kayitSayisi,
+          GROUP_CONCAT(CONCAT(enPx, 'x', boyPx) ORDER BY (enPx * boyPx) DESC) as boyutlar
+        FROM Ledler 
+        GROUP BY ledKodu 
+        HAVING COUNT(*) > 1
+        ORDER BY kayitSayisi DESC
+        LIMIT 5
+      `);
+
+      res.json({
+        success: true,
+        stats: duplicateStats[0],
+        recentDuplicates
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   // Duplicate analizi
   static async analyzeDuplicates(req, res) {
     try {
+      console.log('🔍 Duplicate analizi başlatılıyor...');
+
       const [duplicates] = await db.execute(`
         SELECT 
           ledKodu,
@@ -20,6 +61,8 @@ class CleanupController {
 
       const toplamDuplicate = duplicates.reduce((sum, item) => sum + (item.kayitSayisi - 1), 0);
 
+      console.log(`📊 ${duplicates.length} duplicate grup, ${toplamDuplicate} fazla kayıt bulundu`);
+
       res.json({
         success: true,
         duplicates,
@@ -29,6 +72,7 @@ class CleanupController {
         }
       });
     } catch (error) {
+      console.error('❌ Duplicate analiz hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }
@@ -36,7 +80,10 @@ class CleanupController {
   // Otomatik temizlik (büyük boyutları sil)
   static async cleanupDuplicates(req, res) {
     try {
-      const { dryRun = false } = req.query; // Test modunda çalıştırma
+      const { dryRun = 'false' } = req.query; // Query'den al
+      const isDryRun = dryRun === 'true';
+      
+      console.log(`🧹 ${isDryRun ? 'Test modu' : 'Gerçek'} temizlik başlatılıyor...`);
 
       // Aynı LED kodu olan kayıtları bul
       const [duplicateGroups] = await db.execute(`
@@ -61,7 +108,7 @@ class CleanupController {
         if (toDelete.length > 0) {
           deletionLog.push({
             ledKodu: group.ledKodu,
-            keptRecord: `${Math.sqrt(group.minArea)}px (en küçük)`,
+            keptRecord: `${Math.sqrt(group.minArea).toFixed(0)}px² (en küçük)`,
             deletedRecords: toDelete.map(item => ({
               ledID: item.ledID,
               boyut: `${item.enPx}x${item.boyPx}`,
@@ -70,11 +117,12 @@ class CleanupController {
             }))
           });
 
-          if (!dryRun) {
+          if (!isDryRun) {
             // Gerçekten sil
             const idsToDelete = toDelete.map(item => item.ledID);
+            const placeholders = idsToDelete.map(() => '?').join(',');
             await db.execute(
-              `DELETE FROM Ledler WHERE ledID IN (${idsToDelete.map(() => '?').join(',')})`,
+              `DELETE FROM Ledler WHERE ledID IN (${placeholders})`,
               idsToDelete
             );
             totalDeleted += toDelete.length;
@@ -82,17 +130,21 @@ class CleanupController {
         }
       }
 
-      res.json({
+      const responseData = {
         success: true,
-        dryRun,
+        dryRun: isDryRun,
         summary: {
           duplicateGroupsFound: duplicateGroups.length,
-          recordsDeleted: dryRun ? 0 : totalDeleted,
-          wouldBeDeleted: dryRun ? deletionLog.reduce((sum, group) => sum + group.deletedRecords.length, 0) : totalDeleted
+          recordsDeleted: isDryRun ? 0 : totalDeleted,
+          wouldBeDeleted: isDryRun ? deletionLog.reduce((sum, group) => sum + group.deletedRecords.length, 0) : totalDeleted
         },
         deletionLog
-      });
+      };
+
+      console.log(`✅ Temizlik tamamlandı: ${isDryRun ? 'Test' : totalDeleted + ' kayıt silindi'}`);
+      res.json(responseData);
     } catch (error) {
+      console.error('❌ Cleanup hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }

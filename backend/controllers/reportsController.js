@@ -1,3 +1,4 @@
+// backend/controllers/reportsController.js - DÜZELTME
 const db = require('../config/database');
 
 class ReportsController {
@@ -38,6 +39,7 @@ class ReportsController {
         sehirDagilimi
       });
     } catch (error) {
+      console.error('Dashboard stats error:', error);
       res.status(500).json({ error: error.message });
     }
   }
@@ -100,9 +102,11 @@ class ReportsController {
     }
   }
 
-  // Gelişmiş CSV Export
+  // ✅ CSV Export - DÜZELTİLDİ
   static async exportToCSV(req, res) {
     try {
+      console.log('📁 CSV Export başlatılıyor...', req.body);
+      
       const { 
         startDate, 
         endDate, 
@@ -115,7 +119,7 @@ class ReportsController {
       let params = [];
 
       if (startDate && endDate) {
-        whereClause += ' AND l.createdAt BETWEEN ? AND ?';
+        whereClause += ' AND DATE(l.createdAt) BETWEEN ? AND ?';
         params.push(startDate, endDate);
       }
 
@@ -130,8 +134,10 @@ class ReportsController {
       }
 
       if (!includeInactive) {
-        whereClause += ' AND l.ozelDurum != "Pasif"';
+        whereClause += ' AND (l.ozelDurum IS NULL OR l.ozelDurum != "Pasif")';
       }
+
+      console.log('📊 SQL Query:', whereClause, params);
 
       const [exportData] = await db.execute(`
         SELECT 
@@ -140,10 +146,10 @@ class ReportsController {
           l.boyPx as 'Boy (px)',
           ROUND(l.aspect, 4) as 'Aspect Ratio',
           l.tip as 'Tip',
-          l.ozelDurum as 'Durum',
-          m.sehir as 'Şehir',
-          m.magazaAdi as 'Mağaza',
-          l.notlar as 'Notlar',
+          COALESCE(l.ozelDurum, 'Aktif') as 'Durum',
+          COALESCE(m.sehir, 'Belirtilmemiş') as 'Şehir',
+          COALESCE(m.magazaAdi, 'Atanmamış') as 'Mağaza',
+          COALESCE(l.notlar, '') as 'Notlar',
           DATE_FORMAT(l.createdAt, '%d.%m.%Y %H:%i') as 'Oluşturulma Tarihi',
           DATE_FORMAT(l.updatedAt, '%d.%m.%Y %H:%i') as 'Güncellenme Tarihi'
         FROM Ledler l
@@ -152,28 +158,42 @@ class ReportsController {
         ORDER BY l.createdAt DESC
       `, params);
 
-      // CSV formatında döndür
+      console.log(`📈 ${exportData.length} kayıt bulundu`);
+
       if (exportData.length === 0) {
-        return res.status(404).json({ error: 'Belirtilen kriterlere uygun veri bulunamadı' });
+        return res.status(404).json({ 
+          error: 'Belirtilen kriterlere uygun veri bulunamadı' 
+        });
       }
 
+      // CSV formatında döndür
       const headers = Object.keys(exportData[0]);
       let csvContent = headers.join(',') + '\n';
       
       exportData.forEach(row => {
         const values = headers.map(header => {
           const value = row[header];
+          if (value === null || value === undefined) return '';
           return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
         });
         csvContent += values.join(',') + '\n';
       });
 
+      // ✅ Response headers düzeltildi
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="led-panels-${new Date().toISOString().split('T')[0]}.csv"`);
-      res.send('\uFEFF' + csvContent); // UTF-8 BOM for Excel
+      
+      // UTF-8 BOM for Excel compatibility
+      const csvWithBOM = '\uFEFF' + csvContent;
+      
+      console.log('✅ CSV export başarılı');
+      res.send(csvWithBOM);
+      
     } catch (error) {
+      console.error('❌ CSV export hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }
 }
+
 module.exports = ReportsController;

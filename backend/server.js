@@ -6,7 +6,9 @@ require('dotenv').config();
 const ledRoutes = require('./routes/ledRoutes');
 const authRoutes = require('./routes/authRoutes');
 const magazaRoutes = require('./routes/magazaRoutes'); // YENİ
-
+// const aspectRulesRoutes = require('./routes/aspectRulesRoutes');
+// //const cleanupRoutes = require('./routes/cleanupRoutes');
+const reportsRoutes = require('./routes/reportsRoutes');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -25,6 +27,9 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/leds', ledRoutes);
 app.use('/api/magazalar', magazaRoutes); // YENİ
+// app.use('/api/aspect-rules', aspectRulesRoutes);
+// //app.use('/api/cleanup', cleanupRoutes);
+ app.use('/api/reports', reportsRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

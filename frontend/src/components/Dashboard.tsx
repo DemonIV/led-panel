@@ -6,6 +6,7 @@ import Navigation from './Navigation';
 import LEDList from './LEDList';
 import MagazaList from './MagazaList';
 import UserProfile from './UserProfile'; // YENİ
+import RealDashboard from './RealDashboard'; // YENİ
 
 const Dashboard: React.FC = () => {
   const [currentTab, setCurrentTab] = useState(0);
@@ -28,7 +29,7 @@ const Dashboard: React.FC = () => {
       case 2:
         return (
           <Box sx={{ p: 3 }}>
-            <h2>Dashboard (Yakında)</h2>
+            return <RealDashboard />; // YENİ - eskisi yerine
             <p>Raporlar ve analitik burada görünecek.</p>
           </Box>
         );

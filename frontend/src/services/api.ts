@@ -38,6 +38,14 @@ export const magazaAPI = {
   update: (id: number, data: any) => api.put(`/magazalar/${id}`, data),
   delete: (id: number) => api.delete(`/magazalar/${id}`),
 };
+// YENİ: Reports API
+export const reportsAPI = {
+  getDashboardStats: () => api.get('/reports/dashboard'),
+  getMonthlyReport: (params: any) => api.get('/reports/monthly', { params }),
+  exportToCSV: (filters: any) => api.post('/reports/export-csv', filters, {
+    responseType: 'blob'
+  }),
+};
 
 
 export default api;

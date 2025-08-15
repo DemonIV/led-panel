@@ -1,8 +1,7 @@
-// frontend/src/components/RealDashboard.tsx
+// frontend/src/components/RealDashboard.tsx - Box Layout ile Düzeltildi
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Grid,
   Card,
   CardContent,
   Typography,
@@ -22,10 +21,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   TextField
 } from '@mui/material';
 import {
@@ -34,9 +29,7 @@ import {
   Category,
   TrendingUp,
   Download,
-  Refresh,
-  DateRange,
-  FilterList
+  Refresh
 } from '@mui/icons-material';
 import { reportsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -114,7 +107,6 @@ const RealDashboard: React.FC = () => {
     try {
       setExportLoading(true);
       
-      // Basit export (tüm veriler)
       const filters = {
         startDate: exportFilters.startDate || null,
         endDate: exportFilters.endDate || null,
@@ -207,9 +199,17 @@ const RealDashboard: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Ana İstatistik Kartları */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      {/* Ana İstatistik Kartları - ✅ Flexbox Layout */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          gap: 3, 
+          mb: 4,
+          flexWrap: 'wrap'
+        }}
+      >
+        {/* LED Panel Sayısı */}
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Memory sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
@@ -229,9 +229,10 @@ const RealDashboard: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
-        <Grid item xs={12} sm={6} md={3}>
+        {/* Mağaza Sayısı */}
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Store sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
@@ -243,9 +244,10 @@ const RealDashboard: React.FC = () => {
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
-        <Grid item xs={12} sm={6} md={3}>
+        {/* Tip Sayısı */}
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Category sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
@@ -257,9 +259,10 @@ const RealDashboard: React.FC = () => {
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
-        <Grid item xs={12} sm={6} md={3}>
+        {/* Haftalık Eklenenler */}
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <TrendingUp sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
@@ -274,13 +277,19 @@ const RealDashboard: React.FC = () => {
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
-      {/* Alt Bilgiler */}
-      <Grid container spacing={3}>
+      {/* Alt Bilgiler - ✅ Flexbox Layout */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          gap: 3,
+          flexWrap: 'wrap'
+        }}
+      >
         {/* Tip Dağılımı */}
-        <Grid item xs={12} md={6}>
+        <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -326,10 +335,10 @@ const RealDashboard: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
         {/* Şehir Dağılımı */}
-        <Grid item xs={12} md={6}>
+        <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -367,8 +376,8 @@ const RealDashboard: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* CSV Export Dialog */}
       <Dialog open={exportDialogOpen} onClose={() => setExportDialogOpen(false)} maxWidth="sm" fullWidth>

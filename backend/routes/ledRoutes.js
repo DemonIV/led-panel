@@ -1,18 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { getAllLeds, createLed, updateLed, deleteLed } = require('../controllers/ledController');
+const multer = require('multer');
+const { getAllLeds, createLed, updateLed, deleteLed, importCSV } = require('../controllers/ledController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
-// Tüm kullanıcılar LED'leri görüntüleyebilir
+// Multer configuration
+const upload = multer({ dest: 'uploads/' });
+
+// Existing routes
 router.get('/', authenticateToken, getAllLeds);
-
-// Sadece admin ve ajans LED oluşturabilir
 router.post('/', authenticateToken, authorizeRoles('admin', 'ajans'), createLed);
-
-// Sadece admin ve ajans LED güncelleyebilir
 router.put('/:id', authenticateToken, authorizeRoles('admin', 'ajans'), updateLed);
-
-// Sadece admin LED silebilir
 router.delete('/:id', authenticateToken, authorizeRoles('admin'), deleteLed);
+
+// NEW: CSV import route
+router.post('/import-csv', authenticateToken, authorizeRoles('admin', 'ajans'), upload.single('csvFile'), importCSV);
 
 module.exports = router;

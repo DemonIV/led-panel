@@ -11,6 +11,7 @@ const cleanupRoutes = require('./routes/cleanupRoutes'); // ✅ Aktif edildi
 const reportsRoutes = require('./routes/reportsRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const assetRoutes = require('./routes/assetRoutes');
+const templateRoutes = require('./routes/templateRoutes');
 
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/api/cleanup', cleanupRoutes); // ✅ Aktif edildi
 app.use('/api/reports', reportsRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/templates', templateRoutes);
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

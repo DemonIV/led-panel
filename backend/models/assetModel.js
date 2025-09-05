@@ -1,3 +1,4 @@
+// backend/models/assetModel.js
 const db = require('../config/database');
 
 class AssetModel {
@@ -11,13 +12,21 @@ class AssetModel {
   }
 
   static async getByProject(projectId) {
-    const [rows] = await db.execute('SELECT * FROM Assets WHERE projectID = ?', [projectId]);
+    const [rows] = await db.execute(
+      'SELECT * FROM Assets WHERE projectID = ? ORDER BY createdAt DESC',
+      [projectId]
+    );
     return rows;
   }
 
   static async delete(id) {
     const [result] = await db.execute('DELETE FROM Assets WHERE assetID = ?', [id]);
     return result;
+  }
+
+  static async findById(id) {
+    const [rows] = await db.execute('SELECT * FROM Assets WHERE assetID = ?', [id]);
+    return rows[0];
   }
 }
 

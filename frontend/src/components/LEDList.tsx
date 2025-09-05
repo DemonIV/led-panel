@@ -1,3 +1,4 @@
+// frontend/src/components/LEDList.tsx - Güncellenmiş versiyon
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -16,32 +17,49 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Input
+  Input,
+  Menu,
+  MenuItem,
+  Fab
 } from '@mui/material';
-import { Edit, Delete, Add, Upload } from '@mui/icons-material';
+import { 
+  Edit, 
+  Delete, 
+  Add, 
+  Upload, 
+  FileDownload,
+  Link,
+  MoreVert,
+  FilterList,
+  Analytics
+} from '@mui/icons-material';
 import { LED } from '../types/led.types';
-import { Magaza } from '../types/magaza.types'; // ✅ YENİ
-import { ledAPI, magazaAPI } from '../services/api'; // ✅ magazaAPI eklendi
+import { Magaza } from '../types/magaza.types';
+import { ledAPI, magazaAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import LEDForm from './LEDForm';
-import LEDFilters from './LEDFilters'; // ✅ YENİ
+import LEDFilters from './LEDFilters';
+import AdvancedLEDExport from './AdvancedLEDExport'; // ✅ YENİ
+import URLScraperDialog from './URLScraperDialog'; // ✅ YENİ
 
 const LEDList: React.FC = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false); // ✅ YENİ
+  const [scraperDialogOpen, setScraperDialogOpen] = useState(false); // ✅ YENİ
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [filteredLeds, setFilteredLeds] = useState<LED[]>([]);
   const [showFilters, setShowFilters] = useState(true);
   const [leds, setLeds] = useState<LED[]>([]);
-  const [magazalar, setMagazalar] = useState<Magaza[]>([]); // ✅ YENİ
+  const [magazalar, setMagazalar] = useState<Magaza[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editLed, setEditLed] = useState<LED | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [ledToDelete, setLedToDelete] = useState<LED | null>(null);
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null); // ✅ YENİ
   const { user } = useAuth();
   
-  // Admin ve ajans mı kontrol et
   const canEdit = user?.role === 'admin' || user?.role === 'ajans';
   const canDelete = user?.role === 'admin';
   const canSeeDetails = user?.role === 'admin' || user?.role === 'ajans';
@@ -71,7 +89,7 @@ const LEDList: React.FC = () => {
       alert(`Başarılı! ${response.data.imported} LED eklendi.`);
       setImportDialogOpen(false);
       setSelectedFile(null);
-      fetchLeds(); // Listeyi yenile
+      fetchLeds();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Import başarısız');
     } finally {
@@ -84,7 +102,7 @@ const LEDList: React.FC = () => {
       setLoading(true);
       const response = await ledAPI.getAll();
       setLeds(response.data);
-      setFilteredLeds(response.data); // ✅ Filtered state'i de set et
+      setFilteredLeds(response.data);
     } catch (error) {
       console.error('LED listesi alınamadı:', error);
     } finally {
@@ -92,7 +110,6 @@ const LEDList: React.FC = () => {
     }
   };
 
-  // ✅ YENİ: Mağaza listesi getirme
   const fetchMagazalar = async () => {
     try {
       const response = await magazaAPI.getAll();
@@ -104,7 +121,7 @@ const LEDList: React.FC = () => {
 
   useEffect(() => {
     fetchLeds();
-    fetchMagazalar(); // ✅ YENİ
+    fetchMagazalar();
   }, []);
 
   const handleAddNew = () => {
@@ -127,7 +144,7 @@ const LEDList: React.FC = () => {
 
     try {
       await ledAPI.delete(ledToDelete.ledID!);
-      await fetchLeds(); // Listeyi yenile
+      await fetchLeds();
       setDeleteConfirmOpen(false);
       setLedToDelete(null);
     } catch (error) {
@@ -137,16 +154,48 @@ const LEDList: React.FC = () => {
   };
 
   const handleFormSuccess = () => {
-    fetchLeds(); // Listeyi yenile
+    fetchLeds();
+  };
+
+  const handleFilterChange = (filtered: LED[]) => {
+    setFilteredLeds(filtered);
+  };
+
+  // ✅ YENİ: More menu handlers
+  const handleMoreMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMoreMenuAnchor(event.currentTarget);
+  };
+
+  const handleMoreMenuClose = () => {
+    setMoreMenuAnchor(null);
+  };
+
+  // ✅ YENİ: Export handler
+  const handleExportOpen = () => {
+    setExportDialogOpen(true);
+    handleMoreMenuClose();
+  };
+
+  // ✅ YENİ: Scraper handler
+  const handleScraperOpen = () => {
+    setScraperDialogOpen(true);
+    handleMoreMenuClose();
+  };
+
+  // ✅ YENİ: Quick stats
+  const getQuickStats = () => {
+    const stats = {
+      total: filteredLeds.length,
+      active: filteredLeds.filter(led => led.ozelDurum === 'Aktif').length,
+      assigned: filteredLeds.filter(led => led.magazaID).length,
+      avgAspectRatio: filteredLeds.length > 0 ? 
+        (filteredLeds.reduce((sum, led) => sum + (led.aspect || 0), 0) / filteredLeds.length).toFixed(3) : '0.000'
+    };
+    return stats;
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('tr-TR');
-  };
-
-  // ✅ Filter change handler
-  const handleFilterChange = (filtered: LED[]) => {
-    setFilteredLeds(filtered);
   };
 
   const getStatusColor = (status?: string) => {
@@ -162,19 +211,50 @@ const LEDList: React.FC = () => {
     return <Typography>Yükleniyor...</Typography>;
   }
 
+  const stats = getQuickStats();
+
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          LED Panel Listesi ({filteredLeds.length})
+      {/* Header with Stats */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            LED Panel Listesi ({filteredLeds.length})
+          </Typography>
+          
+          {/* ✅ YENİ: Quick Stats */}
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+            <Chip 
+              label={`Toplam: ${stats.total}`} 
+              color="primary" 
+              variant="outlined" 
+            />
+            <Chip 
+              label={`Aktif: ${stats.active}`} 
+              color="success" 
+              variant="outlined" 
+            />
+            <Chip 
+              label={`Atanmış: ${stats.assigned}`} 
+              color="info" 
+              variant="outlined" 
+            />
+            <Chip 
+              label={`Ort. Ratio: ${stats.avgAspectRatio}`} 
+              color="secondary" 
+              variant="outlined" 
+            />
+          </Box>
+          
           {filteredLeds.length !== leds.length && (
-            <Typography component="span" variant="body2" color="text.secondary">
-              {` / ${leds.length} toplam`}
+            <Typography variant="body2" color="text.secondary">
+              {leds.length} toplam kayıttan filtrelenmiş
             </Typography>
           )}
-        </Typography>
+        </Box>
         
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        {/* ✅ YENİ: Action Buttons */}
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <Button 
             variant="outlined" 
             onClick={fetchLeds}
@@ -185,13 +265,12 @@ const LEDList: React.FC = () => {
           
           {canEdit && (
             <>
-              <Button 
+              <Button
                 variant="outlined"
-                startIcon={<Upload />}
-                onClick={() => setImportDialogOpen(true)}
-                sx={{ mr: 2 }}
+                startIcon={<FilterList />}
+                onClick={() => setShowFilters(!showFilters)}
               >
-                CSV Import
+                Filtreler
               </Button>
               
               <Button 
@@ -199,20 +278,47 @@ const LEDList: React.FC = () => {
                 startIcon={<Add />}
                 onClick={handleAddNew}
               >
-                Yeni LED Ekle
+                Yeni LED
               </Button>
+              
+              <IconButton onClick={handleMoreMenuOpen}>
+                <MoreVert />
+              </IconButton>
             </>
           )}
         </Box>
       </Box>
 
-      {/* ✅ YENİ: LEDFilters component'i */}
-      <LEDFilters
-        onFilterChange={handleFilterChange}
-        allLeds={leds}
-        allMagazalar={magazalar}
-      />
+      {/* ✅ YENİ: More Actions Menu */}
+      <Menu
+        anchorEl={moreMenuAnchor}
+        open={Boolean(moreMenuAnchor)}
+        onClose={handleMoreMenuClose}
+      >
+        <MenuItem onClick={handleExportOpen}>
+          <FileDownload sx={{ mr: 1 }} />
+          Gelişmiş Export
+        </MenuItem>
+        <MenuItem onClick={handleScraperOpen}>
+          <Link sx={{ mr: 1 }} />
+          URL Scraper
+        </MenuItem>
+        <MenuItem onClick={() => setImportDialogOpen(true)}>
+          <Upload sx={{ mr: 1 }} />
+          CSV Import
+        </MenuItem>
+      </Menu>
 
+      {/* Filters */}
+      {showFilters && (
+        <LEDFilters
+          onFilterChange={handleFilterChange}
+          allLeds={leds}
+          allMagazalar={magazalar}
+        />
+      )}
+
+      {/* Main Table */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -245,6 +351,9 @@ const LEDList: React.FC = () => {
                 <TableCell>
                   <Typography variant="body2">
                     {led.enPx} × {led.boyPx} px
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {((led.enPx * led.boyPx) / 1000000).toFixed(1)}M px²
                   </Typography>
                 </TableCell>
                 
@@ -284,6 +393,12 @@ const LEDList: React.FC = () => {
                 {canSeeDetails && (
                   <TableCell>
                     <Typography variant="body2">
+                      {led.sehir && (
+                        <Typography component="span" variant="caption" color="primary">
+                          {led.sehir}
+                        </Typography>
+                      )}
+                      <br />
                       {led.magazaAdi || 'Atanmamış'}
                     </Typography>
                   </TableCell>
@@ -336,7 +451,7 @@ const LEDList: React.FC = () => {
         </Table>
       </TableContainer>
 
-      {/* ✅ Güncellenmiş boş liste mesajları */}
+      {/* Empty States */}
       {filteredLeds.length === 0 && leds.length > 0 && (
         <Box sx={{ textAlign: 'center', mt: 4 }}>
           <Typography variant="h6" color="text.secondary">
@@ -355,13 +470,25 @@ const LEDList: React.FC = () => {
           </Typography>
           {canEdit && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Yeni LED eklemek için yukarıdaki butonu kullanın.
+              Yeni LED eklemek için yukarıdaki butonu kullanın veya CSV import/URL scraper ile toplu ekleme yapın.
             </Typography>
           )}
         </Box>
       )}
 
-      {/* LED Form Modal */}
+      {/* ✅ YENİ: Floating Action Button for Quick Access */}
+      {canEdit && (
+        <Fab
+          color="secondary"
+          aria-label="analytics"
+          sx={{ position: 'fixed', bottom: 16, right: 16 }}
+          onClick={handleExportOpen}
+        >
+          <Analytics />
+        </Fab>
+      )}
+
+      {/* Existing Modals */}
       <LEDForm
         open={formOpen}
         onClose={() => setFormOpen(false)}
@@ -369,7 +496,6 @@ const LEDList: React.FC = () => {
         editLed={editLed}
       />
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
         <DialogTitle>LED Panel Silme Onayı</DialogTitle>
         <DialogContent>
@@ -388,7 +514,6 @@ const LEDList: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* CSV Import Dialog */}
       <Dialog open={importDialogOpen} onClose={() => setImportDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>CSV Import</DialogTitle>
         <DialogContent>
@@ -422,6 +547,21 @@ const LEDList: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ✅ YENİ: Advanced Export Dialog */}
+      <AdvancedLEDExport
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        allLeds={leds}
+        allMagazalar={magazalar}
+      />
+
+      {/* ✅ YENİ: URL Scraper Dialog */}
+      <URLScraperDialog
+        open={scraperDialogOpen}
+        onClose={() => setScraperDialogOpen(false)}
+        onSuccess={handleFormSuccess}
+      />
     </Box>
   );
 };

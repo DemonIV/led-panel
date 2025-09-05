@@ -12,4 +12,7 @@ router.get('/monthly', authenticateToken, ReportsController.getMonthlyReport);
 // CSV Export (herkese açık)
 router.post('/export-csv', authenticateToken, ReportsController.exportToCSV);
 
+// backend/routes/reportsRoutes.js - Yeni endpoint ekleyin
+
+// Advanced LED filtering and export
 module.exports = router;

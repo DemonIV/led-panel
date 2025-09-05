@@ -43,7 +43,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const ProjectManagement: React.FC = () => {
   const { user } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]); // Başlangıçta boş array
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -66,17 +66,18 @@ const ProjectManagement: React.FC = () => {
   const canDelete = user?.role === 'admin';
 
   const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      const response = await projectAPI.getAll();
-      setProjects(response.data);
-    } catch (error) {
-      console.error('Projeler alınamadı:', error);
-      setError('Projeler yüklenemedi');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const response = await projectAPI.getAll();
+    setProjects(response.data.data || []); // Boş array ile fallback
+  } catch (error) {
+    console.error('Projeler alınamadı:', error);
+    setError('Projeler yüklenemedi');
+    setProjects([]); // Hata durumunda boş array
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchProjects();
@@ -309,20 +310,21 @@ const ProjectManagement: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card sx={{ flex: '1 1 200px' }}>
+             <Card sx={{ flex: '1 1 200px' }}>
           <CardContent sx={{ textAlign: 'center' }}>
-            <Typography variant="h4" color="success.main">
-              {projects.filter(p => p.status === 'active').length}
-            </Typography>
+           <Typography variant="h4" color="success.main">
+  {(projects || []).filter(p => p.status === 'active').length}
+</Typography>
             <Typography color="text.secondary">Aktif Proje</Typography>
           </CardContent>
         </Card>
 
         <Card sx={{ flex: '1 1 200px' }}>
           <CardContent sx={{ textAlign: 'center' }}>
-            <Typography variant="h4" color="info.main">
-              {projects.filter(p => p.status === 'completed').length}
-            </Typography>
+            
+<Typography variant="h4" color="info.main">
+  {(projects || []).filter(p => p.status === 'completed').length}
+</Typography>
             <Typography color="text.secondary">Tamamlanan</Typography>
           </CardContent>
         </Card>
@@ -344,8 +346,9 @@ const ProjectManagement: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {projects.map((project) => (
-                  <TableRow key={project.projectID} hover>
+                {(projects || []).map((project) => (
+              <TableRow key={project.projectID} hover>
+                    {/* ... */}
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <span>{getProjectTypeIcon(project.projectType)}</span>

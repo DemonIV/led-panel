@@ -1,11 +1,17 @@
+// frontend/src/components/Navigation.tsx
 import React from 'react';
+import { Tabs, Tab, Box, Paper } from '@mui/material';
 import {
-  Tabs,
-  Tab,
-  Box,
-  Badge
-} from '@mui/material';
-import { Store, Memory, Dashboard, Person ,Settings,CleaningServices,Movie} from '@mui/icons-material';
+  Tv,
+  Store,
+  AspectRatio,
+  CleaningServices,
+  Dashboard,
+  AccountCircle,
+  Movie,
+  ViewModule
+} from '@mui/icons-material';
+
 interface NavigationProps {
   currentTab: number;
   onTabChange: (newValue: number) => void;
@@ -17,47 +23,57 @@ const Navigation: React.FC<NavigationProps> = ({ currentTab, onTabChange, userRo
     onTabChange(newValue);
   };
 
-  // Role-based tab visibility
   const canManage = userRole === 'admin' || userRole === 'ajans';
 
-  // Tab configuration based on role
-const getTabConfig = () => {
-  if (canManage) {
-    // Admin/Ajans: 0=LED, 1=Mağaza, 2=TipKuralları, 3=Temizlik, 4=Dashboard, 5=Profil
-    return [
-      { label: "LED'ler", icon: <Memory />, index: 0 },
-      { label: "Mağazalar", icon: <Store />, index: 1 },
-      { label: "Tip Kuralları", icon: <Settings />, index: 2 },        // ✅ Index 2
-      { label: "Temizlik", icon: <CleaningServices />, index: 3 },     // ✅ Index 3
-      { label: "Dashboard", icon: <Dashboard />, index: 4 },           // ✅ Index 4
-      { label: "Profil", icon: <Person />, index: 5 },                  // ✅ Index 5
-      { label: "Projeler", icon: <Movie />, index: 6 }
-    ];
-  } else {
-    // Müşteri: 0=LED, 1=Mağaza, 2=Profil
-    return [
-      { label: "LED'ler", icon: <Memory />, index: 0 },
-      { label: "Mağazalar", icon: <Store />, index: 1 },
-      { label: "Profil", icon: <Person />, index: 2 }
-    ];
-  }
-};
+  const adminTabs = [
+    { label: 'LED Paneller', icon: <Tv /> },
+    { label: 'Mağazalar', icon: <Store /> },
+    { label: 'Tip Kuralları', icon: <AspectRatio /> },
+    { label: 'Temizlik', icon: <CleaningServices /> },
+    { label: 'Dashboard', icon: <Dashboard /> },
+    { label: 'Profil', icon: <AccountCircle /> },
+    { label: 'Projeler', icon: <Movie /> },
+    { label: 'Template\'ler', icon: <ViewModule /> },
+   
+    { label: 'LED Paneller', value: 0 },
+    { label: 'Mağazalar', value: 1 },
+    { label: 'Projeler', value: 2 }, // YENİ
+    { label: 'Template\'ler', value: 3 }, // YENİ
+    { label: 'Render Queue', value: 4 }, // YENİ
+  ];
 
-  const tabs = getTabConfig();
+  const customerTabs = [
+    { label: 'LED Paneller', value: 0 },
+    { label: 'Mağazalar', value: 1 },
+    { label: 'LED Paneller', icon: <Tv /> },
+    { label: 'Mağazalar', icon: <Store /> },
+    { label: 'Profil', icon: <AccountCircle /> }
+  ];
+
+  const tabs = canManage ? adminTabs : customerTabs;
 
   return (
-    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-  <Tabs value={currentTab} onChange={handleChange} aria-label="navigation tabs">
-  {tabs.map((tab) => (
-    <Tab 
-      key={`tab-${tab.index}`}  // ✅ Unique key eklendi
-      icon={tab.icon} 
-      label={tab.label} 
-      iconPosition="start"
-    />
-  ))}
-</Tabs>
-    </Box>
+    <Paper elevation={1} sx={{ mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs
+          value={currentTab}
+          onChange={handleChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="dashboard navigation"
+        >
+          {tabs.map((tab, index) => (
+            <Tab
+              key={index}
+              icon={tab.icon}
+              label={tab.label}
+              iconPosition="start"
+              sx={{ minHeight: 64 }}
+            />
+          ))}
+        </Tabs>
+      </Box>
+    </Paper>
   );
 };
 

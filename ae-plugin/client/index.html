@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LED Panel Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="panel-header">
+      <h1>🎬 LED Panel Manager</h1>
+      <div class="connection-status" id="connectionStatus">
+        <span class="status-indicator offline"></span>
+        <span>Disconnected</span>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="projects">Projects</button>
+      <button class="tab-btn" data-tab="leds">LEDs</button>
+      <button class="tab-btn" data-tab="tools">Tools</button>
+      <button class="tab-btn" data-tab="render">Render</button>
+    </nav>
+
+    <!-- Projects Tab -->
+    <div class="tab-content active" id="projects-tab">
+      <div class="section">
+        <h3>Current Projects</h3>
+        <div id="projectsList" class="projects-list">
+          <!-- Projects will be loaded here -->
+        </div>
+        <button class="btn btn-primary" onclick="loadProjects()">🔄 Refresh</button>
+      </div>
+      
+      <div class="section">
+        <h3>Create Composition</h3>
+        <select id="projectSelect" class="select-field">
+          <option value="">Select Project...</option>
+        </select>
+        <button class="btn btn-success" onclick="createSquareMaster()">📐 Create Sq Master</button>
+      </div>
+    </div>
+
+    <!-- LEDs Tab -->
+    <div class="tab-content" id="leds-tab">
+      <div class="section">
+        <h3>LED Database</h3>
+        <div class="search-box">
+          <input type="text" id="ledSearch" placeholder="Search LEDs..." onchange="searchLEDs()">
+          <button onclick="searchLEDs()">🔍</button>
+        </div>
+        <div id="ledsList" class="leds-list">
+          <!-- LEDs will be loaded here -->
+        </div>
+      </div>
+      
+      <div class="section">
+        <h3>Quick Filters</h3>
+        <div class="filter-row">
+          <select id="cityFilter" onchange="applyLEDFilters()">
+            <option value="">All Cities</option>
+          </select>
+          <select id="typeFilter" onchange="applyLEDFilters()">
+            <option value="">All Types</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tools Tab -->
+    <div class="tab-content" id="tools-tab">
+      <div class="section">
+        <h3>Add Assets</h3>
+        <div class="button-grid">
+          <button class="btn btn-tool" onclick="addSolid()">🎨 Add Solid</button>
+          <button class="btn btn-tool" onclick="addShoe()">👟 Add Shoe</button>
+          <button class="btn btn-tool" onclick="add2DLogo()">🏷️ Add 2D Logo</button>
+          <button class="btn btn-tool" onclick="add3DLogo()">🏷️ Add 3D Logo</button>
+          <button class="btn btn-tool" onclick="add3DShoe()">👟 Add 3D Shoe</button>
+          <button class="btn btn-tool" onclick="addTextMachine()">📝 Add Text Machine</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Composition Tools</h3>
+        <div class="button-grid">
+          <button class="btn btn-tool" onclick="addColorReference()">🎨 Color Reference</button>
+          <button class="btn btn-tool" onclick="scaleChecker()">📏 Scale Checker</button>
+          <button class="btn btn-tool" onclick="addMotionTile()">🔄 Motion Tile</button>
+          <button class="btn btn-tool" onclick="duplicateRotate()">🔄 Duplicate Rotate</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Templates</h3>
+        <div class="button-grid">
+          <button class="btn btn-template" onclick="applyShoeInOut()">👟 Shoe In/Out</button>
+          <button class="btn btn-template" onclick="applyTransition()">🔄 Transition</button>
+          <button class="btn btn-template" onclick="applyLogoIntro()">🏷️ Logo Intro</button>
+          <button class="btn btn-template" onclick="applyLogoOutro()">🏷️ Logo Outro</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Render Tab -->
+    <div class="tab-content" id="render-tab">
+      <div class="section">
+        <h3>Render Queue</h3>
+        <div id="renderQueue" class="render-queue">
+          <!-- Render items will be loaded here -->
+        </div>
+        <div class="button-row">
+          <button class="btn btn-primary" onclick="createRenderQueue()">📋 Create Queue</button>
+          <button class="btn btn-danger" onclick="removeDuplicates()">🗑️ Remove Duplicates</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Screen Selection</h3>
+        <div class="button-row">
+          <button class="btn btn-secondary" onclick="selectSpecialScreens()">⭐ Special Screens</button>
+          <button class="btn btn-secondary" onclick="selectByProperty()">🎯 Select by Property</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings/Config -->
+    <footer class="panel-footer">
+      <div class="settings">
+        <input type="text" id="apiUrl" placeholder="API URL" value="http://localhost:3001/api">
+        <button class="btn btn-small" onclick="connectToAPI()">Connect</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="../shared/api-client.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

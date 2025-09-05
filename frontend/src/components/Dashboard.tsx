@@ -11,6 +11,8 @@ import RealDashboard from './RealDashboard';
 import AspectRulesManagement from './AspectRulesManagement';
 import CleanupManagement from './CleanupManagement';
 import ProjectManagement from './ProjectManagement';
+import TemplateManagement from './TemplateManagement';
+import RenderQueueManagement from './RenderQueueManagement';
 
 const Dashboard: React.FC = () => {
   const [currentTab, setCurrentTab] = useState(0);
@@ -24,19 +26,21 @@ const Dashboard: React.FC = () => {
   const canManage = user?.role === 'admin' || user?.role === 'ajans';
   
   if (canManage) {
-    // Admin/Ajans tab yapısı: 0=LED, 1=Mağaza, 2=TipKuralları, 3=Temizlik, 4=Dashboard, 5=Profil
+    // Admin/Ajans tab yapısı: 0=LED, 1=Mağaza, 2=Projeler, 3=Templates, 4=RenderQueue, 5=TipKuralları, 6=Temizlik, 7=Dashboard, 8=Profil
     switch (currentTab) {
       case 0: return <LEDList />;
       case 1: return <MagazaList />;
-      case 2: return <AspectRulesManagement />;
-      case 3: return <CleanupManagement />;     // ✅ YENİ
-      case 4: return <RealDashboard />;
-      case 5: return <UserProfile />;
-      case 6: return <ProjectManagement />; // Admin/Ajans tab yapısında 
+      case 2: return <ProjectManagement />;
+      case 3: return <TemplateManagement />;
+      case 4: return <RenderQueueManagement />;
+      case 5: return <AspectRulesManagement />;
+      case 6: return <CleanupManagement />;
+      case 7: return <RealDashboard />;
+      case 8: return <UserProfile />;
       default: return <LEDList />;
     }
   } else {
-    // Müşteri tab yapısı: 0=LED, 1=Mağaza, 2=Profil (Temizlik yok)
+    // Müşteri tab yapısı: 0=LED, 1=Mağaza, 2=Profil
     switch (currentTab) {
       case 0: return <LEDList />;
       case 1: return <MagazaList />;

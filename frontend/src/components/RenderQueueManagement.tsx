@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+ 
   Box,
   Card,
   CardContent,
@@ -273,67 +274,66 @@ const RenderQueueManagement: React.FC = () => {
       )}
 
       {/* İstatistik Kartları */}
-      {stats && (
-        <Box sx={{ mb: 4 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="primary">
-                    {stats.totalJobs}
-                  </Typography>
-                  <Typography color="text.secondary">Toplam İş</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+{stats && (
+  <Box sx={{ mb: 4 }}>
+    <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="primary">
+              {stats.totalJobs}
+            </Typography>
+            <Typography color="text.secondary">Toplam İş</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="warning.main">
-                    {stats.pendingJobs}
-                  </Typography>
-                  <Typography color="text.secondary">Bekleyen</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="warning.main">
+              {stats.pendingJobs}
+            </Typography>
+            <Typography color="text.secondary">Bekleyen</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="info.main">
-                    {stats.processingJobs}
-                  </Typography>
-                  <Typography color="text.secondary">İşleniyor</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="info.main">
+              {stats.processingJobs}
+            </Typography>
+            <Typography color="text.secondary">İşleniyor</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="success.main">
-                    {stats.completedJobs}
-                  </Typography>
-                  <Typography color="text.secondary">Tamamlanan</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="success.main">
+              {stats.completedJobs}
+            </Typography>
+            <Typography color="text.secondary">Tamamlanan</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="error.main">
-                    {stats.failedJobs}
-                  </Typography>
-                  <Typography color="text.secondary">Başarısız</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Box>
-      )}
-
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="error.main">
+              {stats.failedJobs}
+            </Typography>
+            <Typography color="text.secondary">Başarısız</Typography>
+          </CardContent>
+        </Card>
+      </Box>
+    </Box>
+  </Box>
+)}
       {/* Render Queue Tablosu */}
       <Card>
         <CardContent>

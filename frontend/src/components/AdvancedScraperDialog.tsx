@@ -7,6 +7,7 @@ import {
   Button,
   TextField,
   Box,
+  Stack,
   Typography,
   Card,
   CardContent,
@@ -29,7 +30,7 @@ import {
   LinearProgress,
   Tabs,
   Tab,
-  Grid,
+  // Grid kaldırıldı
   ImageList,
   ImageListItem,
   ImageListItemBar,
@@ -73,6 +74,7 @@ interface ProjectSettings {
   projectName: string;
 }
 
+// TabPanel component düzeltildi
 function TabPanel(props: any) {
   const { children, value, index, ...other } = props;
   return (
@@ -92,6 +94,8 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
   onClose, 
   onSuccess 
 }) => {
+  // ... state'ler aynı kalıyor
+
   const [currentTab, setCurrentTab] = useState(0);
   const [urls, setUrls] = useState<string[]>(['']);
   const [selectedPreset, setSelectedPreset] = useState('generic');
@@ -107,14 +111,12 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
     images: ''
   });
   
-  // ✅ YENİ: Görsel yönetimi state'leri
   const [scrapedImages, setScrapedImages] = useState<ScrapedImage[]>([]);
   const [downloadImages, setDownloadImages] = useState(true);
   const [optimizeImages, setOptimizeImages] = useState(true);
   const [maxImageSize, setMaxImageSize] = useState(2);
   const [imageQuality, setImageQuality] = useState(85);
   
-  // ✅ YENİ: Proje ayarları
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>({
     createProject: true,
     createLED: true,
@@ -131,7 +133,8 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
   const [presets, setPresets] = useState<any>({});
   const [progress, setProgress] = useState(0);
 
-  // Presets yükle
+  // ... useEffect'ler ve fonksiyonlar aynı kalıyor
+
   useEffect(() => {
     const fetchPresets = async () => {
       try {
@@ -152,14 +155,12 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
     }
   }, [open]);
 
-  // Preset değiştiğinde selector'ları güncelle
   useEffect(() => {
     if (selectedPreset && presets[selectedPreset]) {
       setCustomSelectors(presets[selectedPreset]);
     }
   }, [selectedPreset, presets]);
 
-  // URL ekle/çıkar
   const addURL = () => {
     setUrls([...urls, '']);
   };
@@ -174,7 +175,6 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
     setUrls(newUrls);
   };
 
-  // ✅ YENİ: Gelişmiş önizleme (görseller dahil)
   const handleAdvancedPreview = async () => {
     if (!urls[0]) {
       setError('En az bir URL girin');
@@ -202,18 +202,17 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
       if (result.success) {
         setPreviewData(result.data);
         
-        // Bulunan görselleri state'e ekle
         if (result.data.images && result.data.images.length > 0) {
           const imageObjects = result.data.images.map((url: string) => ({
             url: url,
-            selected: true, // Varsayılan olarak seçili
+            selected: true,
             downloaded: false
           }));
           setScrapedImages(imageObjects);
-          setCurrentTab(1); // Görseller tab'ına geç
+          setCurrentTab(1);
         }
         
-        setSuccess('Önizleme başarılı - Görseller bulundu: ' + result.data.images?.length || 0);
+        setSuccess(`Önizleme başarılı - Görseller bulundu: ${result.data.images?.length ?? 0}`);
       } else {
         setError(result.error || 'Önizleme başarısız');
       }
@@ -224,20 +223,17 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
     }
   };
 
-  // ✅ YENİ: Görsel seçimi toggle
   const toggleImageSelection = (index: number) => {
     const newImages = [...scrapedImages];
     newImages[index].selected = !newImages[index].selected;
     setScrapedImages(newImages);
   };
 
-  // ✅ YENİ: Tümünü seç/seçme
   const selectAllImages = (select: boolean) => {
     const newImages = scrapedImages.map(img => ({ ...img, selected: select }));
     setScrapedImages(newImages);
   };
 
-  // ✅ YENİ: Tam proje oluşturma (görsel indirme ile)
   const handleFullProjectCreation = async () => {
     const validUrls = urls.filter(url => url.trim());
     
@@ -251,10 +247,9 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
       setError('');
       setProgress(0);
 
-      // Her URL için tam proje oluşturma
       for (let i = 0; i < validUrls.length; i++) {
         const url = validUrls[i];
-        setProgress((i / validUrls.length) * 50); // İlk yarı scraping
+        setProgress((i / validUrls.length) * 50);
 
         const response = await fetch('/api/scraper/scrape-and-create-project', {
           method: 'POST',
@@ -271,7 +266,7 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
             },
             downloadImages: downloadImages,
             imageSettings: {
-              maxSize: maxImageSize * 1024 * 1024, // MB to bytes
+              maxSize: maxImageSize * 1024 * 1024,
               quality: imageQuality,
               optimize: optimizeImages,
               selectedImages: scrapedImages.filter(img => img.selected).map(img => img.url)
@@ -285,11 +280,11 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
           setBulkResults(prev => [...prev, result]);
         }
         
-        setProgress(50 + ((i + 1) / validUrls.length) * 50); // İkinci yarı proje oluşturma
+        setProgress(50 + ((i + 1) / validUrls.length) * 50);
       }
 
       setSuccess(`✅ Tamamlandı! ${bulkResults.length} proje oluşturuldu`);
-      onSuccess(); // Ana sayfayı yenile
+      onSuccess();
       
     } catch (err: any) {
       setError('Proje oluşturma hatası: ' + err.message);
@@ -299,7 +294,6 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
     }
   };
 
-  // ✅ YENİ: Sadece görsel indirme
   const handleImageDownload = async () => {
     const selectedImages = scrapedImages.filter(img => img.selected);
     
@@ -328,9 +322,8 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
       const result = await response.json();
       
       if (result.success) {
-        // İndirilen görselleri işaretle
         const updatedImages = scrapedImages.map(img => {
-          const downloaded = result.downloadedImages.find(d => d.originalUrl === img.url);
+          const downloaded = result.downloadedImages.find((d: any) => d.originalUrl === img.url);
           if (downloaded) {
             return {
               ...img,
@@ -406,85 +399,93 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
             <Tab label="Preview" icon={<Preview />} />
           </Tabs>
 
-          {/* Tab 0: URLs & Settings */}
+          {/* Tab 0: URLs & Settings - Grid'ler Box ile değiştirildi */}
           <TabPanel value={currentTab} index={0}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>Site Şablonu</Typography>
-                    <FormControl fullWidth>
-                      <InputLabel>Hazır Şablon</InputLabel>
-                      <Select
-                        value={selectedPreset}
-                        onChange={(e) => setSelectedPreset(e.target.value)}
-                      >
-                        <MenuItem value="generic">Genel Şablon</MenuItem>
-                        <MenuItem value="trendyol">Trendyol</MenuItem>
-                        <MenuItem value="hepsiburada">Hepsiburada</MenuItem>
-                        <MenuItem value="custom-led">LED Özel Siteler</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </CardContent>
-                </Card>
-              </Grid>
+            <Stack spacing={3}>
+              {/* Site Şablonu ve Görsel Ayarları */}
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>Site Şablonu</Typography>
+                      <FormControl fullWidth>
+                        <InputLabel>Hazır Şablon</InputLabel>
+                        <Select
+                          value={selectedPreset}
+                          onChange={(e) => setSelectedPreset(e.target.value)}
+                        >
+                          <MenuItem value="generic">Genel Şablon</MenuItem>
+                          <MenuItem value="trendyol">Trendyol</MenuItem>
+                          <MenuItem value="hepsiburada">Hepsiburada</MenuItem>
+                          <MenuItem value="custom-led">LED Özel Siteler</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </CardContent>
+                  </Card>
+                </Box>
 
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>Görsel Ayarları</Typography>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={downloadImages}
-                          onChange={(e) => setDownloadImages(e.target.checked)}
+                <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>Görsel Ayarları</Typography>
+                      <Stack spacing={1}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={downloadImages}
+                              onChange={(e) => setDownloadImages(e.target.checked)}
+                            />
+                          }
+                          label="Görselleri İndir"
                         />
-                      }
-                      label="Görselleri İndir"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={optimizeImages}
-                          onChange={(e) => setOptimizeImages(e.target.checked)}
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={optimizeImages}
+                              onChange={(e) => setOptimizeImages(e.target.checked)}
+                            />
+                          }
+                          label="Görselleri Optimize Et"
                         />
-                      }
-                      label="Görselleri Optimize Et"
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Box>
+              </Box>
 
-              <Grid item xs={12}>
+              {/* URL Listesi */}
+              <Box sx={{ width: '100%' }}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>URL Listesi</Typography>
-                    {urls.map((url, index) => (
-                      <Box key={index} sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                        <TextField
-                          fullWidth
-                          label={`URL ${index + 1}`}
-                          value={url}
-                          onChange={(e) => updateURL(index, e.target.value)}
-                          placeholder="https://example.com/product/..."
-                        />
-                        {urls.length > 1 && (
-                          <Button 
-                            color="error" 
-                            onClick={() => removeURL(index)}
-                          >
-                            Sil
-                          </Button>
-                        )}
-                      </Box>
-                    ))}
-                    <Button onClick={addURL} variant="outlined">
-                      + URL Ekle
-                    </Button>
+                    <Stack spacing={2}>
+                      {urls.map((url, index) => (
+                        <Box key={index} sx={{ display: 'flex', gap: 1 }}>
+                          <TextField
+                            fullWidth
+                            label={`URL ${index + 1}`}
+                            value={url}
+                            onChange={(e) => updateURL(index, e.target.value)}
+                            placeholder="https://example.com/product/..."
+                          />
+                          {urls.length > 1 && (
+                            <Button 
+                              color="error" 
+                              onClick={() => removeURL(index)}
+                            >
+                              Sil
+                            </Button>
+                          )}
+                        </Box>
+                      ))}
+                      <Button onClick={addURL} variant="outlined">
+                        + URL Ekle
+                      </Button>
+                    </Stack>
                   </CardContent>
                 </Card>
-              </Grid>
-            </Grid>
+              </Box>
+            </Stack>
           </TabPanel>
 
           {/* Tab 1: Images */}
@@ -549,7 +550,6 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                             }}
                           />
                           
-                          {/* Selection Checkbox */}
                           <Checkbox
                             checked={image.selected}
                             onChange={() => toggleImageSelection(index)}
@@ -562,7 +562,6 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                             }}
                           />
                           
-                          {/* Download Status */}
                           {image.downloaded && (
                             <Chip
                               label="İndirildi"
@@ -577,7 +576,6 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                             />
                           )}
                           
-                          {/* Image Info Bar */}
                           <ImageListItemBar
                             title={`Görsel ${index + 1}`}
                             subtitle={image.fileName ? 
@@ -608,8 +606,8 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                       <Typography>Görsel İşleme Ayarları</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
                           <Typography gutterBottom>Max Dosya Boyutu (MB)</Typography>
                           <Select
                             fullWidth
@@ -622,8 +620,8 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                             <MenuItem value={5}>5 MB</MenuItem>
                             <MenuItem value={10}>10 MB</MenuItem>
                           </Select>
-                        </Grid>
-                        <Grid item xs={6}>
+                        </Box>
+                        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
                           <Typography gutterBottom>JPEG Kalitesi (%)</Typography>
                           <Select
                             fullWidth
@@ -635,8 +633,8 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                             <MenuItem value={85}>85% (İyi)</MenuItem>
                             <MenuItem value={95}>95% (Yüksek)</MenuItem>
                           </Select>
-                        </Grid>
-                      </Grid>
+                        </Box>
+                      </Box>
                     </AccordionDetails>
                   </Accordion>
                 )}
@@ -644,87 +642,90 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
             </Card>
           </TabPanel>
 
-          {/* Tab 2: Project Settings */}
+          {/* Tab 2: Project Settings - Grid'ler Box ile değiştirildi */}
           <TabPanel value={currentTab} index={2}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>Otomatik Proje Oluşturma</Typography>
-                    
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={projectSettings.createProject}
-                          onChange={(e) => setProjectSettings(prev => ({ 
-                            ...prev, 
-                            createProject: e.target.checked 
-                          }))}
-                        />
-                      }
-                      label="After Effects Projesi Oluştur"
-                    />
-                    
-                    {projectSettings.createProject && (
-                      <>
-                        <TextField
-                          fullWidth
-                          label="Proje Adı"
-                          value={projectSettings.projectName}
-                          onChange={(e) => setProjectSettings(prev => ({ 
-                            ...prev, 
-                            projectName: e.target.value 
-                          }))}
-                          placeholder="Otomatik isim verilecek"
-                          sx={{ mt: 2 }}
-                        />
-                        
-                        <FormControl fullWidth sx={{ mt: 2 }}>
-                          <InputLabel>Proje Tipi</InputLabel>
-                          <Select
-                            value={projectSettings.projectType}
+            <Stack spacing={3}>
+              {/* Otomatik Proje ve LED Ayarları */}
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>Otomatik Proje Oluşturma</Typography>
+                      
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={projectSettings.createProject}
                             onChange={(e) => setProjectSettings(prev => ({ 
                               ...prev, 
-                              projectType: e.target.value as any 
+                              createProject: e.target.checked 
                             }))}
-                          >
-                            <MenuItem value="shoe">👟 Shoe Project</MenuItem>
-                            <MenuItem value="logo">🏷️ Logo Project</MenuItem>
-                            <MenuItem value="mixed">🎬 Mixed Project</MenuItem>
-                          </Select>
-                        </FormControl>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
+                          />
+                        }
+                        label="After Effects Projesi Oluştur"
+                      />
+                      
+                      {projectSettings.createProject && (
+                        <Stack spacing={2} sx={{ mt: 2 }}>
+                          <TextField
+                            fullWidth
+                            label="Proje Adı"
+                            value={projectSettings.projectName}
+                            onChange={(e) => setProjectSettings(prev => ({ 
+                              ...prev, 
+                              projectName: e.target.value 
+                            }))}
+                            placeholder="Otomatik isim verilecek"
+                          />
+                          
+                          <FormControl fullWidth>
+                            <InputLabel>Proje Tipi</InputLabel>
+                            <Select
+                              value={projectSettings.projectType}
+                              onChange={(e) => setProjectSettings(prev => ({ 
+                                ...prev, 
+                                projectType: e.target.value as any 
+                              }))}
+                            >
+                              <MenuItem value="shoe">👟 Shoe Project</MenuItem>
+                              <MenuItem value="logo">🏷️ Logo Project</MenuItem>
+                              <MenuItem value="mixed">🎬 Mixed Project</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Stack>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Box>
 
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>LED Veritabanı Kaydı</Typography>
-                    
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={projectSettings.createLED}
-                          onChange={(e) => setProjectSettings(prev => ({ 
-                            ...prev, 
-                            createLED: e.target.checked 
-                          }))}
-                        />
-                      }
-                      label="LED Kaydı Oluştur"
-                    />
-                    
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Boyut bilgileri bulunan ürünler için otomatik LED panel kaydı oluşturulacak
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
+                <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>LED Veritabanı Kaydı</Typography>
+                      
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={projectSettings.createLED}
+                            onChange={(e) => setProjectSettings(prev => ({ 
+                              ...prev, 
+                              createLED: e.target.checked 
+                            }))}
+                          />
+                        }
+                        label="LED Kaydı Oluştur"
+                      />
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Boyut bilgileri bulunan ürünler için otomatik LED panel kaydı oluşturulacak
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Box>
+              </Box>
 
-              <Grid item xs={12}>
+              {/* İşlem Özeti */}
+              <Box sx={{ width: '100%' }}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>İşlem Özeti</Typography>
@@ -773,73 +774,75 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                     </List>
                   </CardContent>
                 </Card>
-              </Grid>
-            </Grid>
+              </Box>
+            </Stack>
           </TabPanel>
 
-          {/* Tab 3: Preview */}
+          {/* Tab 3: Preview - Grid'ler Box ile değiştirildi */}
           <TabPanel value={currentTab} index={3}>
-            <Grid container spacing={3}>
-              {previewData && (
-                <Grid item xs={12} md={8}>
+            <Stack spacing={3}>
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                {previewData && (
+                  <Box sx={{ flex: '2 1 600px', minWidth: 600 }}>
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                          <Preview sx={{ mr: 1 }} />
+                          Scraping Önizlemesi
+                        </Typography>
+                        <Box sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 1, maxHeight: 400, overflow: 'auto' }}>
+                          <Typography variant="body2" component="pre">
+                            {JSON.stringify(previewData, null, 2)}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Box>
+                )}
+
+                <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
                   <Card>
                     <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        <Preview sx={{ mr: 1 }} />
-                        Scraping Önizlemesi
-                      </Typography>
-                      <Box sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 1, maxHeight: 400, overflow: 'auto' }}>
-                        <Typography variant="body2" component="pre">
-                          {JSON.stringify(previewData, null, 2)}
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              )}
-
-              <Grid item xs={12} md={4}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>Quick Actions</Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <Button
-                        variant="contained"
-                        startIcon={previewLoading ? <CircularProgress size={20} /> : <Preview />}
-                        onClick={handleAdvancedPreview}
-                        disabled={previewLoading || !urls[0]}
-                        fullWidth
-                      >
-                        {previewLoading ? 'Scraping...' : 'Smart Preview'}
-                      </Button>
-
-                      {scrapedImages.length > 0 && (
+                      <Typography variant="h6" gutterBottom>Quick Actions</Typography>
+                      <Stack spacing={2}>
                         <Button
-                          variant="outlined"
-                          startIcon={<PhotoLibrary />}
-                          onClick={() => setCurrentTab(1)}
+                          variant="contained"
+                          startIcon={previewLoading ? <CircularProgress size={20} /> : <Preview />}
+                          onClick={handleAdvancedPreview}
+                          disabled={previewLoading || !urls[0]}
                           fullWidth
                         >
-                          View Images ({scrapedImages.length})
+                          {previewLoading ? 'Scraping...' : 'Smart Preview'}
                         </Button>
-                      )}
 
-                      <Button
-                        variant="outlined"
-                        startIcon={<Settings />}
-                        onClick={() => setCurrentTab(2)}
-                        fullWidth
-                      >
-                        Project Settings
-                      </Button>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
+                        {scrapedImages.length > 0 && (
+                          <Button
+                            variant="outlined"
+                            startIcon={<PhotoLibrary />}
+                            onClick={() => setCurrentTab(1)}
+                            fullWidth
+                          >
+                            View Images ({scrapedImages.length})
+                          </Button>
+                        )}
+
+                        <Button
+                          variant="outlined"
+                          startIcon={<Settings />}
+                          onClick={() => setCurrentTab(2)}
+                          fullWidth
+                        >
+                          Project Settings
+                        </Button>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Box>
+              </Box>
 
               {/* Sonuçlar */}
               {bulkResults.length > 0 && (
-                <Grid item xs={12}>
+                <Box sx={{ width: '100%' }}>
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
@@ -854,12 +857,12 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                             <ListItemText
                               primary={result.productData?.name || `URL ${index + 1}`}
                               secondary={
-                                <Box>
+                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                   {result.projectId && (
-                                    <Chip label={`Proje: ${result.projectId}`} size="small" sx={{ mr: 1 }} />
+                                    <Chip label={`Proje: ${result.projectId}`} size="small" />
                                   )}
                                   {result.ledId && (
-                                    <Chip label={`LED: ${result.ledId}`} size="small" sx={{ mr: 1 }} />
+                                    <Chip label={`LED: ${result.ledId}`} size="small" />
                                   )}
                                   {result.downloadedImages?.length > 0 && (
                                     <Chip 
@@ -876,9 +879,9 @@ const AdvancedScraperDialog: React.FC<AdvancedScraperDialogProps> = ({
                       </List>
                     </CardContent>
                   </Card>
-                </Grid>
+                </Box>
               )}
-            </Grid>
+            </Stack>
           </TabPanel>
         </Box>
       </DialogContent>

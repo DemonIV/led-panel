@@ -39,7 +39,7 @@ import { ledAPI, magazaAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import LEDForm from './LEDForm';
 import LEDFilters from './LEDFilters';
-import AdvancedLEDExport from './AdvancedLEDExport'; // ✅ YENİ
+import AdvancedLEDExport from './AdvancedLedExport'; // ✅ YENİ
 import URLScraperDialog from './URLScraperDialog'; // ✅ YENİ
 
 const LEDList: React.FC = () => {

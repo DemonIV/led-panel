@@ -1,6 +1,7 @@
 // frontend/src/components/AdvancedLEDExport.tsx
 import React, { useState, useEffect } from 'react';
 import {
+  
   Dialog,
   DialogTitle,
   DialogContent,
@@ -22,14 +23,14 @@ import {
   StepLabel,
   Checkbox,
   FormControlLabel,
-  Grid,
   Slider,
   Accordion,
   AccordionSummary,
   AccordionDetails,
   Tab,
   Tabs,
-  TabPanel
+  Stack,
+  
 } from '@mui/material';
 import {
   FilterList,
@@ -76,6 +77,7 @@ interface ExportFilters {
 }
 
 interface ExportFormat {
+  includeMetadata?: boolean;
   type: 'JSON' | 'CSV' | 'AE_SCRIPT' | 'XML';
   structure: 'flat' | 'nested' | 'grouped';
   includeSchema?: boolean;
@@ -446,177 +448,178 @@ createLEDCompositions();
           </Tabs>
 
           {/* Filtreler Tab */}
-          <TabPanelComponent value={currentTab} index={0}>
-            <Grid container spacing={3}>
-              {/* Boyut Filtreleri */}
-              <Grid item xs={12}>
-                <Accordion>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Boyut Filtreleri</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          label="Min En (px)"
-                          type="number"
-                          value={filters.enPxMin || ''}
-                          onChange={(e) => setFilters(prev => ({ ...prev, enPxMin: e.target.value ? parseInt(e.target.value) : undefined }))}
-                        />
-                      </Grid>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          label="Max En (px)"
-                          type="number"
-                          value={filters.enPxMax || ''}
-                          onChange={(e) => setFilters(prev => ({ ...prev, enPxMax: e.target.value ? parseInt(e.target.value) : undefined }))}
-                        />
-                      </Grid>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          label="Min Boy (px)"
-                          type="number"
-                          value={filters.boyPxMin || ''}
-                          onChange={(e) => setFilters(prev => ({ ...prev, boyPxMin: e.target.value ? parseInt(e.target.value) : undefined }))}
-                        />
-                      </Grid>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          label="Max Boy (px)"
-                          type="number"
-                          value={filters.boyPxMax || ''}
-                          onChange={(e) => setFilters(prev => ({ ...prev, boyPxMax: e.target.value ? parseInt(e.target.value) : undefined }))}
-                        />
-                      </Grid>
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              </Grid>
+{/* Filtreler Tab */}
+<TabPanelComponent value={currentTab} index={0}>
+  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    {/* Boyut Filtreleri */}
+    <Box sx={{ width: '100%' }}>
+      <Accordion>
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Typography variant="h6">Boyut Filtreleri</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+              <TextField
+                fullWidth
+                label="Min En (px)"
+                type="number"
+                value={filters.enPxMin || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, enPxMin: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </Box>
+            <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+              <TextField
+                fullWidth
+                label="Max En (px)"
+                type="number"
+                value={filters.enPxMax || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, enPxMax: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </Box>
+            <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+              <TextField
+                fullWidth
+                label="Min Boy (px)"
+                type="number"
+                value={filters.boyPxMin || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, boyPxMin: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </Box>
+            <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+              <TextField
+                fullWidth
+                label="Max Boy (px)"
+                type="number"
+                value={filters.boyPxMax || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, boyPxMax: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </Box>
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+    </Box>
 
-              {/* Lokasyon Filtreleri */}
-              <Grid item xs={12}>
-                <Accordion>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Lokasyon Filtreleri</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <FormControl fullWidth>
-                          <InputLabel>Şehirler</InputLabel>
-                          <Select
-                            multiple
-                            value={filters.sehirler}
-                            onChange={(e) => setFilters(prev => ({ ...prev, sehirler: e.target.value as string[] }))}
-                            renderValue={(selected) => (
-                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                {selected.map((value) => (
-                                  <Chip key={value} label={value} size="small" />
-                                ))}
-                              </Box>
-                            )}
-                          >
-                            {uniqueSehirler.map(sehir => (
-                              <MenuItem key={sehir} value={sehir}>{sehir}</MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <FormControl fullWidth>
-                          <InputLabel>Mağazalar</InputLabel>
-                          <Select
-                            multiple
-                            value={filters.magazalar}
-                            onChange={(e) => setFilters(prev => ({ ...prev, magazalar: e.target.value as string[] }))}
-                            renderValue={(selected) => (
-                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                {selected.map((value) => (
-                                  <Chip key={value} label={value} size="small" />
-                                ))}
-                              </Box>
-                            )}
-                          >
-                            {allMagazalar.map(magaza => (
-                              <MenuItem key={magaza.magazaID} value={magaza.magazaAdi}>
-                                {magaza.sehir} - {magaza.magazaAdi}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              </Grid>
+    {/* Lokasyon Filtreleri */}
+    <Box sx={{ width: '100%' }}>
+      <Accordion>
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Typography variant="h6">Lokasyon Filtreleri</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+              <FormControl fullWidth>
+                <InputLabel>Şehirler</InputLabel>
+                <Select
+                  multiple
+                  value={filters.sehirler}
+                  onChange={(e) => setFilters(prev => ({ ...prev, sehirler: e.target.value as string[] }))}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={value} size="small" />
+                      ))}
+                    </Box>
+                  )}
+                >
+                  {uniqueSehirler.map(sehir => (
+                    <MenuItem key={sehir} value={sehir}>{sehir}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+              <FormControl fullWidth>
+                <InputLabel>Mağazalar</InputLabel>
+                <Select
+                  multiple
+                  value={filters.magazalar}
+                  onChange={(e) => setFilters(prev => ({ ...prev, magazalar: e.target.value as string[] }))}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={value} size="small" />
+                      ))}
+                    </Box>
+                  )}
+                >
+                  {allMagazalar.map(magaza => (
+                    <MenuItem key={magaza.magazaID} value={magaza.magazaAdi}>
+                      {magaza.sehir} - {magaza.magazaAdi}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+    </Box>
 
-              {/* Sonuç */}
-              <Grid item xs={12}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6">
-                      Bulunan Sonuçlar: {filteredData.length} LED
-                    </Typography>
-                    {filteredData.length > 0 && (
-                      <Typography variant="body2" color="text.secondary">
-                        Örnek: {filteredData.slice(0, 3).map(led => led.ledKodu).join(', ')}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </TabPanelComponent>
+    {/* Sonuç */}
+    <Box sx={{ width: '100%' }}>
+      <Card>
+        <CardContent>
+          <Typography variant="h6">
+            Bulunan Sonuçlar: {filteredData.length} LED
+          </Typography>
+          {filteredData.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              Örnek: {filteredData.slice(0, 3).map(led => led.ledKodu).join(', ')}
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
+  </Box>
+</TabPanelComponent>
 
-          {/* Format Tab */}
-          <TabPanelComponent value={currentTab} index={1}>
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Export Formatı</InputLabel>
-                  <Select
-                    value={exportFormat.type}
-                    onChange={(e) => setExportFormat(prev => ({ ...prev, type: e.target.value as any }))}
-                  >
-                    <MenuItem value="JSON">JSON - Web/API kullanımı</MenuItem>
-                    <MenuItem value="CSV">CSV - Excel/Tablo</MenuItem>
-                    <MenuItem value="AE_SCRIPT">After Effects Script (.jsx)</MenuItem>
-                    <MenuItem value="XML">XML - Sistem entegrasyonu</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Veri Yapısı</InputLabel>
-                  <Select
-                    value={exportFormat.structure}
-                    onChange={(e) => setExportFormat(prev => ({ ...prev, structure: e.target.value as any }))}
-                  >
-                    <MenuItem value="flat">Düz Liste</MenuItem>
-                    <MenuItem value="nested">Metadata ile</MenuItem>
-                    <MenuItem value="grouped">Tip Bazlı Gruplama</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+{/* Format Tab */}
+<TabPanelComponent value={currentTab} index={1}>
+  <Stack spacing={3}>
+    <Box sx={{ width: '100%' }}>
+      <FormControl fullWidth>
+        <InputLabel>Export Formatı</InputLabel>
+        <Select
+          value={exportFormat.type}
+          onChange={(e) => setExportFormat(prev => ({ ...prev, type: e.target.value as any }))}
+        >
+          <MenuItem value="JSON">JSON - Web/API kullanımı</MenuItem>
+          <MenuItem value="CSV">CSV - Excel/Tablo</MenuItem>
+          <MenuItem value="AE_SCRIPT">After Effects Script (.jsx)</MenuItem>
+          <MenuItem value="XML">XML - Sistem entegrasyonu</MenuItem>
+        </Select>
+      </FormControl>
+    </Box>
+    
+    <Box sx={{ width: '100%' }}>
+      <FormControl fullWidth>
+        <InputLabel>Veri Yapısı</InputLabel>
+        <Select
+          value={exportFormat.structure}
+          onChange={(e) => setExportFormat(prev => ({ ...prev, structure: e.target.value as any }))}
+        >
+          <MenuItem value="flat">Düz Liste</MenuItem>
+          <MenuItem value="nested">Metadata ile</MenuItem>
+          <MenuItem value="grouped">Tip Bazlı Gruplama</MenuItem>
+        </Select>
+      </FormControl>
+    </Box>
 
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={exportFormat.includeMetadata || false}
-                      onChange={(e) => setExportFormat(prev => ({ ...prev, includeMetadata: e.target.checked }))}
-                    />
-                  }
-                  label="Ek Metadata Bilgileri Dahil Et"
-                />
-              </Grid>
-            </Grid>
-          </TabPanelComponent>
+    <Box sx={{ width: '100%' }}>
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={exportFormat.includeMetadata || false}
+            onChange={(e) => setExportFormat(prev => ({ ...prev, includeMetadata: e.target.checked }))}
+          />
+        }
+        label="Ek Metadata Bilgileri Dahil Et"
+      />
+    </Box>
+  </Stack>
+</TabPanelComponent>
 
           {/* Önizleme Tab */}
           <TabPanelComponent value={currentTab} index={2}>

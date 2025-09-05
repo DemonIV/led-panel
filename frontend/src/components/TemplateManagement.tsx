@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+   
   Box,
   Card,
   CardContent,
@@ -279,67 +280,79 @@ const TemplateManagement: React.FC = () => {
         </Alert>
       )}
 
-      {/* İstatistik Kartları */}
       {stats && (
-        <Box sx={{ mb: 4 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="primary">
-                    {stats.totalTemplates}
-                  </Typography>
-                  <Typography color="text.secondary">Toplam Template</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+  <Box sx={{ mb: 4 }}>
+    <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="primary">
+              {stats.totalTemplates}
+            </Typography>
+            <Typography color="text.secondary">Toplam Template</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="primary.main">
-                    {stats.shoeTemplates}
-                  </Typography>
-                  <Typography color="text.secondary">Shoe Templates</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="primary.main">
+              {stats.shoeTemplates}
+            </Typography>
+            <Typography color="text.secondary">Shoe Templates</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="success.main">
-                    {stats.logoIntroTemplates}
-                  </Typography>
-                  <Typography color="text.secondary">Logo Intro</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="success.main">
+              {stats.logoIntroTemplates}
+            </Typography>
+            <Typography color="text.secondary">Logo Intro</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="warning.main">
-                    {stats.logoOutroTemplates}
-                  </Typography>
-                  <Typography color="text.secondary">Logo Outro</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="warning.main">
+              {stats.logoOutroTemplates}
+            </Typography>
+            <Typography color="text.secondary">Logo Outro</Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="secondary.main">
-                    {stats.transitionTemplates}
-                  </Typography>
-                  <Typography color="text.secondary">Transitions</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Box>
-      )}
+      <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
+        <Card>
+          <CardContent sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" color="secondary.main">
+              {stats.transitionTemplates}
+            </Typography>
+            <Typography color="text.secondary">Transitions</Typography>
+          </CardContent>
+        </Card>
+      </Box>
+    </Box>
+  </Box>
+)}
+
+[//MenuItem boolean değerlerini düzeltin:]
+<FormControl fullWidth>
+  <InputLabel>Durum</InputLabel>
+  <Select
+    value={formData.isActive ? "true" : "false"}
+    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.value === "true" }))}
+    label="Durum"
+  >
+    <MenuItem value="true">Aktif</MenuItem>
+    <MenuItem value="false">Pasif</MenuItem>
+  </Select>
+</FormControl>
 
       {/* Template Tablosu */}
       <Card>
@@ -528,8 +541,8 @@ const TemplateManagement: React.FC = () => {
                 onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.value as boolean }))}
                 label="Durum"
               >
-                <MenuItem value={true}>Aktif</MenuItem>
-                <MenuItem value={false}>Pasif</MenuItem>
+                <MenuItem value="true">Aktif</MenuItem>
+                <MenuItem value="false">Pasif</MenuItem>
               </Select>
             </FormControl>
           </Box>

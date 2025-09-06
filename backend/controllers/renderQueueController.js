@@ -1,148 +1,309 @@
-const db = require('../config/database');
+// backend/controllers/renderQueueController.js
+const mysql = require('mysql2/promise');
+
+const db = mysql.createConnection({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'led_panel_db'
+});
 
 class RenderQueueController {
-  // Render kuyruğunu getir
-  static async getRenderQueue(req, res) {
+  
+  // ✅ Tüm render işlerini getir
+  static async getAllJobs(req, res) {
     try {
-      const { status } = req.query;
-      
-      let whereClause = '';
-      let params = [];
-      
-      if (status) {
-        whereClause = 'WHERE rq.status = ?';
-        params.push(status);
-      }
-      
-      const [queue] = await db.execute(`
-        SELECT 
-          rq.*,
-          p.projectName,
-          p.projectType,
-          t.templateName,
-          u.username as createdByName
+      const [jobs] = await db.execute(`
+        SELECT rq.*, p.projectName, p.projectType,
+               COUNT(a.assetID) as assetCount
         FROM RenderQueue rq
         LEFT JOIN Projects p ON rq.projectID = p.projectID
-        LEFT JOIN Templates t ON rq.templateID = t.templateID
-        LEFT JOIN Users u ON rq.createdBy = u.userID
-        ${whereClause}
+        LEFT JOIN Assets a ON rq.projectID = a.projectID
+        GROUP BY rq.jobID
         ORDER BY rq.createdAt DESC
-      `, params);
+      `);
       
-      res.json({ success: true, data: queue });
+      res.json({ success: true, jobs });
     } catch (error) {
+      console.error('❌ Render jobs getirme hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }
 
-  // Render işi ekle
-  static async addToQueue(req, res) {
+  // ✅ Bekleyen işleri getir (AE plugin için)
+  static async getPendingJobs(req, res) {
+    try {
+      const [jobs] = await db.execute(`
+        SELECT rq.*, p.projectName, p.projectType,
+               GROUP_CONCAT(a.filePath) as assetPaths,
+               GROUP_CONCAT(a.assetType) as assetTypes
+        FROM RenderQueue rq
+        LEFT JOIN Projects p ON rq.projectID = p.projectID
+        LEFT JOIN Assets a ON rq.projectID = a.projectID
+        WHERE rq.status = 'pending'
+        GROUP BY rq.jobID
+        ORDER BY rq.priority DESC, rq.createdAt ASC
+        LIMIT 10
+      `);
+      
+      // Asset bilgilerini parse et
+      const formattedJobs = jobs.map(job => ({
+        ...job,
+        assets: job.assetPaths ? job.assetPaths.split(',').map((path, index) => ({
+          filePath: path,
+          assetType: job.assetTypes.split(',')[index]
+        })) : []
+      }));
+      
+      res.json({ success: true, jobs: formattedJobs });
+    } catch (error) {
+      console.error('❌ Pending jobs getirme hatası:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ Yeni render işi oluştur
+  static async createRenderJob(req, res) {
     try {
       const { 
         projectID, 
-        templateID, 
-        outputPath, 
-        renderSettings,
-        estimatedTime 
+        jobName, 
+        renderType = 'composition',
+        outputPath,
+        settings = {},
+        priority = 1
       } = req.body;
       
+      if (!projectID || !jobName) {
+        return res.status(400).json({ error: 'Project ID ve job name gerekli' });
+      }
+      
       const [result] = await db.execute(`
-        INSERT INTO RenderQueue (
-          projectID, 
-          templateID, 
-          outputPath, 
-          renderSettings,
-          estimatedTime,
-          createdBy
-        ) VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO RenderQueue 
+        (projectID, jobName, renderType, outputPath, settings, priority, status, createdAt) 
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())
       `, [
-        projectID, 
-        templateID, 
-        outputPath, 
-        JSON.stringify(renderSettings),
-        estimatedTime,
-        req.user.userID
+        projectID,
+        jobName,
+        renderType,
+        outputPath,
+        JSON.stringify(settings),
+        priority
       ]);
-
-      res.status(201).json({
+      
+      console.log(`✅ Render job oluşturuldu: ${jobName} (ID: ${result.insertId})`);
+      
+      res.json({
         success: true,
-        queueID: result.insertId,
-        message: 'Render kuyruğuna eklendi'
+        jobID: result.insertId,
+        message: 'Render job oluşturuldu'
       });
+      
     } catch (error) {
+      console.error('❌ Render job oluşturma hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }
 
-  // Render durumunu güncelle
-  static async updateRenderStatus(req, res) {
+  // ✅ AE Kompozisyon oluşturma (Plugin için özel)
+  static async createAEComposition(req, res) {
+    try {
+      const {
+        projectID,
+        compositionName,
+        width = 1920,
+        height = 1080,
+        frameRate = 30,
+        duration = 10,
+        backgroundColor = [0, 0, 0],
+        assets = [],
+        templates = []
+      } = req.body;
+
+      if (!projectID || !compositionName) {
+        return res.status(400).json({ error: 'Project ID ve composition name gerekli' });
+      }
+
+      // AE Script komutları oluştur
+      const aeCommands = {
+        type: 'create_composition',
+        composition: {
+          name: compositionName,
+          width: width,
+          height: height,
+          frameRate: frameRate,
+          duration: duration,
+          backgroundColor: backgroundColor
+        },
+        assets: assets,
+        templates: templates,
+        projectID: projectID
+      };
+
+      // Render job olarak kaydet
+      const [result] = await db.execute(`
+        INSERT INTO RenderQueue 
+        (projectID, jobName, renderType, settings, status, priority, createdAt) 
+        VALUES (?, ?, 'ae_composition', ?, 'pending', 2, NOW())
+      `, [
+        projectID,
+        compositionName,
+        JSON.stringify(aeCommands)
+      ]);
+
+      console.log(`✅ AE Composition job oluşturuldu: ${compositionName}`);
+
+      res.json({
+        success: true,
+        jobID: result.insertId,
+        aeCommands: aeCommands,
+        message: 'After Effects composition job oluşturuldu'
+      });
+
+    } catch (error) {
+      console.error('❌ AE composition oluşturma hatası:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ Toplu job oluşturma
+  static async createBatchJobs(req, res) {
+    try {
+      const { jobs } = req.body;
+      
+      if (!jobs || !Array.isArray(jobs)) {
+        return res.status(400).json({ error: 'Jobs array gerekli' });
+      }
+      
+      const createdJobs = [];
+      
+      for (const job of jobs) {
+        const [result] = await db.execute(`
+          INSERT INTO RenderQueue 
+          (projectID, jobName, renderType, outputPath, settings, priority, status, createdAt) 
+          VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())
+        `, [
+          job.projectID,
+          job.jobName,
+          job.renderType || 'composition',
+          job.outputPath,
+          JSON.stringify(job.settings || {}),
+          job.priority || 1
+        ]);
+        
+        createdJobs.push({
+          jobID: result.insertId,
+          jobName: job.jobName
+        });
+      }
+      
+      console.log(`✅ Toplu job oluşturuldu: ${createdJobs.length} iş`);
+      
+      res.json({
+        success: true,
+        createdJobs: createdJobs,
+        count: createdJobs.length
+      });
+      
+    } catch (error) {
+      console.error('❌ Batch job oluşturma hatası:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ Job status güncelleme
+  static async updateJobStatus(req, res) {
     try {
       const { id } = req.params;
-      const { status, progress, errorMessage, actualTime } = req.body;
+      const { status, progress = 0, errorMessage = null } = req.body;
       
-      let updateFields = ['status = ?'];
-      let params = [status];
+      const validStatuses = ['pending', 'processing', 'completed', 'failed', 'cancelled'];
       
-      if (progress !== undefined) {
-        updateFields.push('progress = ?');
-        params.push(progress);
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Geçersiz status' });
       }
       
-      if (status === 'processing' && !req.body.startedAt) {
-        updateFields.push('startedAt = NOW()');
-      }
+      const updateFields = ['status = ?', 'progress = ?', 'updatedAt = NOW()'];
+      const values = [status, progress];
       
-      if (status === 'completed' || status === 'failed') {
+      if (status === 'completed') {
         updateFields.push('completedAt = NOW()');
-        if (actualTime) {
-          updateFields.push('actualTime = ?');
-          params.push(actualTime);
-        }
       }
       
       if (errorMessage) {
         updateFields.push('errorMessage = ?');
-        params.push(errorMessage);
+        values.push(errorMessage);
       }
       
-      params.push(id);
+      values.push(id);
       
-      const [result] = await db.execute(`
+      await db.execute(`
         UPDATE RenderQueue 
         SET ${updateFields.join(', ')}
-        WHERE queueID = ?
-      `, params);
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: 'Render işi bulunamadı' });
-      }
-
-      res.json({ success: true, message: 'Render durumu güncellendi' });
+        WHERE jobID = ?
+      `, values);
+      
+      console.log(`✅ Job status güncellendi: ${id} -> ${status} (${progress}%)`);
+      
+      res.json({
+        success: true,
+        message: 'Job status güncellendi'
+      });
+      
     } catch (error) {
+      console.error('❌ Job status güncelleme hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }
 
-  // Render işini sil
-  static async deleteFromQueue(req, res) {
+  // ✅ Job silme
+  static async deleteJob(req, res) {
     try {
       const { id } = req.params;
       
-      const [result] = await db.execute(`
-        DELETE FROM RenderQueue WHERE queueID = ?
-      `, [id]);
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: 'Render işi bulunamadı' });
-      }
-
-      res.json({ success: true, message: 'Render işi silindi' });
+      await db.execute('DELETE FROM RenderQueue WHERE jobID = ?', [id]);
+      
+      console.log(`✅ Job silindi: ${id}`);
+      
+      res.json({
+        success: true,
+        message: 'Job silindi'
+      });
+      
     } catch (error) {
+      console.error('❌ Job silme hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }
 
-  // Render istatistikleri
+  // ✅ Job status sorgulama
+  static async getJobStatus(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const [jobs] = await db.execute(`
+        SELECT rq.*, p.projectName 
+        FROM RenderQueue rq
+        LEFT JOIN Projects p ON rq.projectID = p.projectID
+        WHERE rq.jobID = ?
+      `, [id]);
+      
+      if (jobs.length === 0) {
+        return res.status(404).json({ error: 'Job bulunamadı' });
+      }
+      
+      const job = jobs[0];
+      job.settings = job.settings ? JSON.parse(job.settings) : {};
+      
+      res.json({ success: true, job });
+      
+    } catch (error) {
+      console.error('❌ Job status sorgulama hatası:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ Render istatistikleri
   static async getRenderStats(req, res) {
     try {
       const [stats] = await db.execute(`
@@ -152,67 +313,29 @@ class RenderQueueController {
           COUNT(CASE WHEN status = 'processing' THEN 1 END) as processingJobs,
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as completedJobs,
           COUNT(CASE WHEN status = 'failed' THEN 1 END) as failedJobs,
-          AVG(CASE WHEN actualTime > 0 THEN actualTime END) as avgRenderTime,
-          SUM(CASE WHEN actualTime > 0 THEN actualTime END) as totalRenderTime
+          AVG(CASE WHEN status = 'completed' AND completedAt IS NOT NULL 
+              THEN TIMESTAMPDIFF(MINUTE, createdAt, completedAt) END) as avgCompletionMinutes,
+          COUNT(CASE WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 END) as jobsLast24h
         FROM RenderQueue
-        WHERE DATE(createdAt) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
       `);
-
-      const [recentJobs] = await db.execute(`
-        SELECT 
-          rq.queueID,
-          rq.status,
-          rq.progress,
-          p.projectName,
-          rq.createdAt
-        FROM RenderQueue rq
-        LEFT JOIN Projects p ON rq.projectID = p.projectID
-        ORDER BY rq.createdAt DESC
-        LIMIT 10
-      `);
-
-      res.json({ 
-        success: true, 
-        stats: stats[0],
-        recentJobs: recentJobs
+      
+      const renderStats = stats[0];
+      
+      res.json({
+        success: true,
+        stats: {
+          total: renderStats.totalJobs,
+          pending: renderStats.pendingJobs,
+          processing: renderStats.processingJobs,
+          completed: renderStats.completedJobs,
+          failed: renderStats.failedJobs,
+          averageCompletionTime: Math.round(renderStats.avgCompletionMinutes || 0),
+          jobsLast24Hours: renderStats.jobsLast24h
+        }
       });
+      
     } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  // After Effects için - bir sonraki render işini al
-  static async getNextJob(req, res) {
-    try {
-      const [jobs] = await db.execute(`
-        SELECT 
-          rq.*,
-          p.projectName,
-          p.projectType,
-          t.templateName,
-          t.templatePath,
-          t.defaultSettings
-        FROM RenderQueue rq
-        LEFT JOIN Projects p ON rq.projectID = p.projectID
-        LEFT JOIN Templates t ON rq.templateID = t.templateID
-        WHERE rq.status = 'pending'
-        ORDER BY rq.createdAt ASC
-        LIMIT 1
-      `);
-
-      if (jobs.length === 0) {
-        return res.json({ success: true, data: null, message: 'Kuyrukta iş yok' });
-      }
-
-      // İşi processing olarak işaretle
-      await db.execute(`
-        UPDATE RenderQueue 
-        SET status = 'processing', startedAt = NOW()
-        WHERE queueID = ?
-      `, [jobs[0].queueID]);
-
-      res.json({ success: true, data: jobs[0] });
-    } catch (error) {
+      console.error('❌ Render stats hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }

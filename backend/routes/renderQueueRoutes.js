@@ -1,24 +1,22 @@
+// backend/routes/renderQueueRoutes.js
 const express = require('express');
 const router = express.Router();
 const RenderQueueController = require('../controllers/renderQueueController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
-// Render kuyruğunu görüntüle (herkese açık)
-router.get('/', authenticateToken, RenderQueueController.getRenderQueue);
+// ✅ Render Queue Management
+router.get('/', authenticateToken, RenderQueueController.getAllJobs);
+router.post('/', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.createRenderJob);
+router.put('/:id/status', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.updateJobStatus);
+router.delete('/:id', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.deleteJob);
 
-// Render istatistikleri (herkese açık)
+// ✅ After Effects specific endpoints
+router.post('/ae-composition', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.createAEComposition);
+router.get('/pending', authenticateToken, RenderQueueController.getPendingJobs);
+router.post('/batch', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.createBatchJobs);
+
+// ✅ Job monitoring
+router.get('/status/:id', authenticateToken, RenderQueueController.getJobStatus);
 router.get('/stats', authenticateToken, RenderQueueController.getRenderStats);
-
-// After Effects için - bir sonraki işi al (admin/ajans)
-router.get('/next', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.getNextJob);
-
-// Render kuyruğuna iş ekle (admin/ajans)
-router.post('/', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.addToQueue);
-
-// Render durumunu güncelle (admin/ajans)
-router.put('/:id', authenticateToken, authorizeRoles('admin', 'ajans'), RenderQueueController.updateRenderStatus);
-
-// Render işini sil (admin)
-router.delete('/:id', authenticateToken, authorizeRoles('admin'), RenderQueueController.deleteFromQueue);
 
 module.exports = router;

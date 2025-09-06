@@ -1,53 +1,68 @@
-const db = require('../config/database');
-const fs = require('fs');
-const path = require('path');
+// backend/controllers/scraperController.js
+const mysql = require('mysql2/promise');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
+
+// Database connection
+const db = mysql.createConnection({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'led_panel_db'
+});
 
 class ScraperController {
-  // Presets getir
-  static async getPresets(req, res) {
+  
+  // ✅ EKSİK METOD: Tek URL scraping
+  static async scrapeProduct(req, res) {
+    try {
+      const { url, selectors } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: 'URL gerekli' });
+      }
+      
+      console.log(`🔍 Scraping URL: ${url}`);
+      
+      const productData = await ScraperController.scrapeProductInternal(url, selectors || {});
+      
+      res.json({
+        success: true,
+        data: productData
+      });
+      
+    } catch (error) {
+      console.error('❌ Scraping hatası:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ EKSİK METOD: Preset selectors
+  static async getPresetSelectors(req, res) {
     try {
       const presets = {
-        generic: {
+        default: {
           name: 'h1, .product-title, .title',
-          width: '.width, .en, [data-width], .w',
-          height: '.height, .boy, [data-height], .h',
-          price: '.price, .fiyat, .amount, .cost',
-          store: '.store, .magaza, .shop-name',
-          city: '.city, .sehir, .location',
-          status: '.status, .durum, .stock',
-          description: '.description, .aciklama, .details',
-          images: 'img, .product-image img'
+          width: '.width, .en, [data-width], .dimension-w',
+          height: '.height, .boy, [data-height], .dimension-h',
+          images: 'img, .product-image img, .gallery img',
+          description: '.description, .product-description, p'
         },
-        trendyol: {
-          name: '.pr-new-br span',
-          width: '.product-detail-info .detail:contains("En") .value',
-          height: '.product-detail-info .detail:contains("Boy") .value',
-          price: '.prc-dsc',
-          store: '.merchant-name',
-          description: '.product-detail-info .detail-desc',
-          images: '.product-detail-picture img'
+        ecommerce: {
+          name: '.product-name, .item-title, h1',
+          width: '.spec-width, .dimension-width',
+          height: '.spec-height, .dimension-height',
+          images: '.product-gallery img, .main-image',
+          description: '.product-desc, .description'
         },
-        hepsiburada: {
-          name: '.product_name',
-          width: '.data-sheet tr:contains("En") td:last-child',
-          height: '.data-sheet tr:contains("Boy") td:last-child',
-          price: '.price-current',
-          store: '.merchant-name',
-          description: '.product-description',
-          images: '.product-images img'
-        },
-        'custom-led': {
-          name: '.led-title, .panel-name',
-          width: '.dimensions .width, .spec-width',
-          height: '.dimensions .height, .spec-height',
-          price: '.led-price, .panel-cost',
-          store: '.supplier, .vendor',
-          city: '.location, .city-info',
-          status: '.stock-status, .availability',
-          description: '.specifications, .led-specs',
-          images: '.led-gallery img, .panel-images img'
+        led_specific: {
+          name: '.led-model, .model-name',
+          width: '.pixel-width, .resolution-w, .en-px',
+          height: '.pixel-height, .resolution-h, .boy-px',
+          images: '.led-image, .product-photo',
+          description: '.specifications, .tech-specs'
         }
       };
       
@@ -57,312 +72,35 @@ class ScraperController {
     }
   }
 
-  // Tek URL scraping
-  static async scrapeProduct(req, res) {
+  // ✅ EKSİK METOD: Scraping statistics
+  static async getScrapingStats(req, res) {
     try {
-      const { url, selectors } = req.body;
+      const [statsResult] = await db.execute(`
+        SELECT 
+          COUNT(*) as totalScraped,
+          COUNT(CASE WHEN sourceURL IS NOT NULL THEN 1 END) as fromScraping,
+          AVG(enPx * boyPx) as avgPixelCount,
+          COUNT(CASE WHEN scrapedAt >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 END) as lastDay
+        FROM Ledler
+      `);
       
-      if (!url) {
-        return res.status(400).json({ error: 'URL gerekli' });
-      }
-
-      console.log('🔍 Scraping URL:', url);
-      
-      const response = await axios.get(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        timeout: 10000
-      });
-      
-      const $ = cheerio.load(response.data);
-      
-      const productData = {
-        name: $(selectors.name || 'h1').first().text().trim(),
-        width: ScraperController.extractNumber($(selectors.width || '.width, .en, [data-width]').first().text()),
-        height: ScraperController.extractNumber($(selectors.height || '.height, .boy, [data-height]').first().text()),
-        price: $(selectors.price || '.price, .fiyat').first().text().trim(),
-        store: $(selectors.store || '.store, .magaza').first().text().trim(),
-        city: $(selectors.city || '.city, .sehir, .location').first().text().trim(),
-        status: $(selectors.status || '.status, .durum').first().text().trim() || 'Aktif',
-        description: $(selectors.description || '.description, .aciklama').first().text().trim(),
-        images: []
-      };
-      
-      // Görsel URL'lerini çek
-      $(selectors.images || 'img').each((i, elem) => {
-        const src = $(elem).attr('src');
-        if (src && (src.includes('http') || src.startsWith('/'))) {
-          productData.images.push(src.startsWith('/') ? new URL(src, url).href : src);
-        }
-      });
-      
-      // LED kodu oluştur
-      productData.ledCode = ScraperController.generateLEDCode(productData);
-      
-      // Aspect ratio hesapla
-      if (productData.width && productData.height) {
-        productData.aspectRatio = (productData.width / productData.height).toFixed(3);
-        productData.area = productData.width * productData.height;
-        productData.type = ScraperController.categorizeByAspectRatio(productData.width / productData.height);
-      }
-      
-      console.log('📊 Scraping sonucu:', productData);
+      const stats = statsResult[0];
       
       res.json({
         success: true,
-        data: productData,
-        url: url,
-        scrapedAt: new Date().toISOString()
+        stats: {
+          total: stats.totalScraped,
+          fromScraping: stats.fromScraping,
+          averagePixelCount: Math.round(stats.avgPixelCount || 0),
+          scrapedLastDay: stats.lastDay
+        }
       });
-      
     } catch (error) {
-      console.error('❌ Scraping hatası:', error.message);
-      res.status(500).json({ 
-        error: 'URL\'den veri çekilemedi: ' + error.message
-      });
-    }
-  }
-
-  // Görsel indirme
-  static async downloadAndSaveImages(req, res) {
-    try {
-      const { imageUrls, productId, productName } = req.body;
-      
-      if (!imageUrls || imageUrls.length === 0) {
-        return res.status(400).json({ error: 'En az bir görsel URL gerekli' });
-      }
-      
-      console.log(`📸 ${imageUrls.length} görsel indiriliyor...`);
-      
-      const downloadedImages = [];
-      const errors = [];
-      
-      // Uploads klasörünü oluştur
-      const uploadDir = path.join('uploads', 'scraped-images');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      
-      for (let i = 0; i < imageUrls.length; i++) {
-        const imageUrl = imageUrls[i];
-        
-        try {
-          console.log(`📥 Görsel indiriliyor: ${imageUrl}`);
-          
-          const response = await axios.get(imageUrl, {
-            responseType: 'stream',
-            timeout: 15000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-          });
-          
-          // Dosya uzantısını belirle
-          const contentType = response.headers['content-type'];
-          let extension = '.jpg';
-          if (contentType) {
-            if (contentType.includes('png')) extension = '.png';
-            if (contentType.includes('gif')) extension = '.gif';
-            if (contentType.includes('webp')) extension = '.webp';
-          }
-          
-          const timestamp = Date.now();
-          const fileName = `${productName || 'product'}_${productId || 'scraped'}_${i + 1}_${timestamp}${extension}`;
-          const filePath = path.join(uploadDir, fileName);
-          
-          // Dosyayı kaydet
-          const writer = fs.createWriteStream(filePath);
-          response.data.pipe(writer);
-          
-          await new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
-            writer.on('error', reject);
-          });
-          
-          const stats = fs.statSync(filePath);
-          
-          downloadedImages.push({
-            originalUrl: imageUrl,
-            fileName: fileName,
-            filePath: filePath,
-            fileSize: stats.size,
-            contentType: contentType,
-            downloadedAt: new Date().toISOString()
-          });
-          
-          console.log(`✅ Görsel kaydedildi: ${fileName} (${(stats.size / 1024).toFixed(1)} KB)`);
-          
-        } catch (error) {
-          console.error(`❌ Görsel indirme hatası [${imageUrl}]:`, error.message);
-          errors.push({
-            url: imageUrl,
-            error: error.message
-          });
-        }
-        
-        // Rate limiting
-        if (i < imageUrls.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-      
-      res.json({
-        success: true,
-        downloadedImages: downloadedImages,
-        errors: errors,
-        summary: {
-          requested: imageUrls.length,
-          downloaded: downloadedImages.length,
-          failed: errors.length,
-          totalSize: downloadedImages.reduce((sum, img) => sum + img.fileSize, 0)
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Görsel indirme sistemi hatası:', error);
       res.status(500).json({ error: error.message });
     }
   }
 
-  // Tam proje oluşturma
-  static async scrapeAndCreateProject(req, res) {
-    try {
-      const { url, selectors, projectSettings, downloadImages = true, imageSettings } = req.body;
-      
-      console.log('🎬 Tam proje oluşturma başlatılıyor:', url);
-      
-      // 1. Ürün bilgilerini scrape et
-      const productData = await ScraperController.scrapeProductInternal(url, selectors);
-      
-      // 2. Proje oluştur
-      let projectId = null;
-      if (projectSettings?.createProject) {
-        const [projectResult] = await db.execute(
-          'INSERT INTO Projects (projectName, projectType, description) VALUES (?, ?, ?)',
-          [
-            projectSettings.projectName || productData.name || `Scraped Project ${Date.now()}`,
-            projectSettings.projectType || 'mixed',
-            `Otomatik scraping: ${url}\n${productData.description || ''}`
-          ]
-        );
-        projectId = projectResult.insertId;
-        console.log(`📁 Proje oluşturuldu: ID ${projectId}`);
-      }
-      
-      // 3. LED kaydı oluştur
-      let ledId = null;
-      if (productData.width && productData.height && projectSettings?.createLED) {
-        const [ledResult] = await db.execute(
-          'INSERT INTO Ledler (ledKodu, enPx, boyPx, tip, ozelDurum, notlar, sourceURL, scrapedAt, linkedProjectID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [
-            productData.ledCode,
-            productData.width,
-            productData.height,
-            productData.type,
-            productData.status || 'Aktif',
-            `Otomatik scraping: ${url}\nPrije ID: ${projectId}`,
-            url,
-            new Date(),
-            projectId
-          ]
-        );
-        ledId = ledResult.insertId;
-        console.log(`💡 LED kaydı oluşturuldu: ID ${ledId}`);
-      }
-      
-      // 4. Görselleri indir ve asset olarak kaydet
-      let downloadedImages = [];
-      if (downloadImages && productData.images && productData.images.length > 0) {
-        console.log(`📸 ${productData.images.length} görsel indiriliyor...`);
-        
-        const uploadDir = path.join('uploads', 'scraped-assets');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        
-        for (let i = 0; i < Math.min(productData.images.length, 10); i++) {
-          const imageUrl = productData.images[i];
-          
-          try {
-            const response = await axios.get(imageUrl, {
-              responseType: 'stream',
-              timeout: 15000,
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-              }
-            });
-            
-            const contentType = response.headers['content-type'];
-            let extension = '.jpg';
-            if (contentType?.includes('png')) extension = '.png';
-            if (contentType?.includes('gif')) extension = '.gif';
-            if (contentType?.includes('webp')) extension = '.webp';
-            
-            const fileName = `${productData.ledCode || 'scraped'}_${i + 1}_${Date.now()}${extension}`;
-            const filePath = path.join(uploadDir, fileName);
-            
-            const writer = fs.createWriteStream(filePath);
-            response.data.pipe(writer);
-            
-            await new Promise((resolve, reject) => {
-              writer.on('finish', resolve);
-              writer.on('error', reject);
-            });
-            
-            const stats = fs.statSync(filePath);
-            
-            // Asset olarak kaydet
-            if (projectId) {
-              await db.execute(
-                'INSERT INTO Assets (assetName, assetType, filePath, fileSize, projectID, originalURL, isFromScraper, scrapedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                  `${productData.name || 'Scraped'} Image ${i + 1}`,
-                  '2D_logo',
-                  filePath,
-                  stats.size,
-                  projectId,
-                  imageUrl,
-                  true,
-                  new Date()
-                ]
-              );
-            }
-            
-            downloadedImages.push({
-              fileName: fileName,
-              filePath: filePath,
-              fileSize: stats.size,
-              originalUrl: imageUrl
-            });
-            
-          } catch (error) {
-            console.error(`Görsel indirme hatası:`, error.message);
-          }
-        }
-      }
-      
-      res.json({
-        success: true,
-        productData: productData,
-        projectId: projectId,
-        ledId: ledId,
-        downloadedImages: downloadedImages,
-        summary: {
-          projectCreated: !!projectId,
-          ledCreated: !!ledId,
-          imagesDownloaded: downloadedImages.length,
-          totalImageSize: downloadedImages.reduce((sum, img) => sum + img.fileSize, 0)
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Tam proje oluşturma hatası:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  // Toplu URL scraping
+  // ✅ Toplu URL scraping
   static async scrapeBulkURLs(req, res) {
     try {
       const { urls, selectors, autoImport } = req.body;
@@ -437,7 +175,254 @@ class ScraperController {
     }
   }
 
-  // Internal scraping helper
+  // ✅ Görsel indirme ve proje oluşturma
+  static async downloadAndSaveImages(req, res) {
+    try {
+      const { images, projectId } = req.body;
+      
+      if (!images || images.length === 0) {
+        return res.status(400).json({ error: 'Görsel listesi gerekli' });
+      }
+      
+      const downloadedImages = [];
+      const uploadDir = path.join(__dirname, '../uploads/assets');
+      
+      // Upload klasörünü oluştur
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      for (let i = 0; i < images.length; i++) {
+        const imageUrl = images[i];
+        
+        try {
+          console.log(`📥 Downloading image ${i + 1}/${images.length}: ${imageUrl}`);
+          
+          const response = await axios.get(imageUrl, {
+            responseType: 'stream',
+            timeout: 10000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+          
+          const fileName = `image_${Date.now()}_${i + 1}.jpg`;
+          const filePath = path.join(uploadDir, fileName);
+          const relativePath = `uploads/assets/${fileName}`;
+          
+          const writer = fs.createWriteStream(filePath);
+          response.data.pipe(writer);
+          
+          await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+          });
+          
+          const stats = fs.statSync(filePath);
+          
+          // Asset'i veritabanına kaydet
+          if (projectId) {
+            await db.execute(
+              'INSERT INTO Assets (assetName, assetType, filePath, fileSize, projectID, sourceURL, isDownloaded, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [
+                `Downloaded Image ${i + 1}`,
+                '2D_logo',
+                relativePath,
+                stats.size,
+                projectId,
+                imageUrl,
+                true,
+                new Date()
+              ]
+            );
+          }
+          
+          downloadedImages.push({
+            fileName: fileName,
+            filePath: relativePath,
+            fileSize: stats.size,
+            originalUrl: imageUrl
+          });
+          
+        } catch (error) {
+          console.error(`Görsel indirme hatası:`, error.message);
+        }
+      }
+      
+      res.json({
+        success: true,
+        downloadedImages: downloadedImages,
+        summary: {
+          totalRequested: images.length,
+          successfullyDownloaded: downloadedImages.length,
+          totalSize: downloadedImages.reduce((sum, img) => sum + img.fileSize, 0)
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Görsel indirme hatası:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ Tam proje oluşturma (scraping + project + assets)
+  static async scrapeAndCreateProject(req, res) {
+    try {
+      const { url, selectors, projectName } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: 'URL gerekli' });
+      }
+      
+      console.log(`🔄 Tam proje oluşturuluyor: ${url}`);
+      
+      // 1. URL'yi scrape et
+      const productData = await ScraperController.scrapeProductInternal(url, selectors || {});
+      
+      let projectId = null;
+      let ledId = null;
+      const downloadedImages = [];
+      
+      // 2. Proje oluştur
+      if (projectName || productData.name) {
+        const finalProjectName = projectName || productData.name || 'Scraped Project';
+        
+        const [projectResult] = await db.execute(
+          'INSERT INTO Projects (projectName, projectType, status, createdAt) VALUES (?, ?, ?, ?)',
+          [finalProjectName, 'mixed', 'active', new Date()]
+        );
+        
+        projectId = projectResult.insertId;
+        console.log(`✅ Proje oluşturuldu: ${finalProjectName} (ID: ${projectId})`);
+      }
+      
+      // 3. LED kaydı oluştur
+      if (productData.width && productData.height) {
+        const [ledResult] = await db.execute(
+          'INSERT INTO Ledler (ledKodu, enPx, boyPx, tip, ozelDurum, notlar, masterTipi, sourceURL, scrapedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            productData.ledCode,
+            productData.width,
+            productData.height,
+            productData.type,
+            'Aktif',
+            `Otomatik import: ${url}\nAçıklama: ${productData.description}`,
+            ScraperController.determineMasterType(productData.width, productData.height),
+            url,
+            new Date()
+          ]
+        );
+        
+        ledId = ledResult.insertId;
+        console.log(`✅ LED kaydı oluşturuldu: ${productData.ledCode} (ID: ${ledId})`);
+      }
+      
+      // 4. Görselleri indir ve asset olarak kaydet
+      if (productData.images && productData.images.length > 0 && projectId) {
+        const uploadDir = path.join(__dirname, '../uploads/assets');
+        
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        
+        for (let i = 0; i < Math.min(productData.images.length, 5); i++) {
+          const imageUrl = productData.images[i];
+          
+          try {
+            console.log(`📥 Görsel indiriliyor ${i + 1}: ${imageUrl}`);
+            
+            const response = await axios.get(imageUrl, {
+              responseType: 'stream',
+              timeout: 10000,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              }
+            });
+            
+            const fileName = `${productData.name}_${Date.now()}_${i + 1}.jpg`.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const filePath = path.join(uploadDir, fileName);
+            const relativePath = `uploads/assets/${fileName}`;
+            
+            const writer = fs.createWriteStream(filePath);
+            response.data.pipe(writer);
+            
+            await new Promise((resolve, reject) => {
+              writer.on('finish', resolve);
+              writer.on('error', reject);
+            });
+            
+            const stats = fs.statSync(filePath);
+            
+            // Asset olarak kaydet
+            await db.execute(
+              'INSERT INTO Assets (assetName, assetType, filePath, fileSize, projectID, sourceURL, isDownloaded, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [
+                `${productData.name || 'Scraped'} Image ${i + 1}`,
+                '2D_logo',
+                relativePath,
+                stats.size,
+                projectId,
+                imageUrl,
+                true,
+                new Date()
+              ]
+            );
+            
+            downloadedImages.push({
+              fileName: fileName,
+              filePath: relativePath,
+              fileSize: stats.size,
+              originalUrl: imageUrl
+            });
+            
+          } catch (error) {
+            console.error(`Görsel indirme hatası:`, error.message);
+          }
+        }
+      }
+      
+      res.json({
+        success: true,
+        productData: productData,
+        projectId: projectId,
+        ledId: ledId,
+        downloadedImages: downloadedImages,
+        summary: {
+          projectCreated: !!projectId,
+          ledCreated: !!ledId,
+          imagesDownloaded: downloadedImages.length,
+          totalImageSize: downloadedImages.reduce((sum, img) => sum + img.fileSize, 0)
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Tam proje oluşturma hatası:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ Görsel optimizasyonu
+  static async optimizeScrapedImages(req, res) {
+    try {
+      const { projectId } = req.params;
+      const { quality = 80, maxWidth = 1920, maxHeight = 1080 } = req.body;
+      
+      // Bu metod şimdilik basit bir placeholder
+      // Gerçek optimizasyon için sharp veya jimp kullanılabilir
+      
+      res.json({
+        success: true,
+        message: 'Görsel optimizasyonu henüz implementasyonda',
+        projectId: projectId,
+        settings: { quality, maxWidth, maxHeight }
+      });
+      
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ✅ Internal helper methods
   static async scrapeProductInternal(url, selectors) {
     const response = await axios.get(url, {
       headers: {
@@ -452,97 +437,43 @@ class ScraperController {
       name: $(selectors.name || 'h1, .product-title, .title').first().text().trim(),
       width: ScraperController.extractNumber($(selectors.width || '.width, .en, [data-width], .dimension-w').first().text()),
       height: ScraperController.extractNumber($(selectors.height || '.height, .boy, [data-height], .dimension-h').first().text()),
-      price: $(selectors.price || '.price, .fiyat, .amount').first().text().trim(),
-      store: $(selectors.store || '.store, .magaza, .shop-name').first().text().trim(),
-      city: $(selectors.city || '.city, .sehir, .location, .address').first().text().trim(),
-      status: $(selectors.status || '.status, .durum, .availability').first().text().trim() || 'Aktif',
-      description: $(selectors.description || '.description, .aciklama, .details').first().text().trim(),
-      category: $(selectors.category || '.category, .kategori').first().text().trim(),
-      brand: $(selectors.brand || '.brand, .marka').first().text().trim(),
-      model: $(selectors.model || '.model').first().text().trim(),
+      description: $(selectors.description || '.description, .product-description, p').first().text().trim(),
       images: []
     };
     
-    // Görsel URL'lerini çek
+    // Görselleri topla
     $(selectors.images || 'img, .product-image img, .gallery img').each((i, elem) => {
       const src = $(elem).attr('src') || $(elem).attr('data-src');
-      if (src && (src.includes('http') || src.startsWith('/'))) {
-        productData.images.push(src.startsWith('/') ? new URL(src, url).href : src);
+      if (src && src.startsWith('http')) {
+        productData.images.push(src);
       }
     });
     
     // LED kodu oluştur
-    productData.ledCode = ScraperController.generateLEDCode(productData);
+    productData.ledCode = productData.name 
+      ? productData.name.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()
+      : `LED_${Date.now()}`;
     
-    // Hesaplamalar
+    // Tip belirle
     if (productData.width && productData.height) {
-      productData.aspectRatio = (productData.width / productData.height).toFixed(3);
-      productData.area = productData.width * productData.height;
-      productData.type = ScraperController.categorizeByAspectRatio(productData.width / productData.height);
+      const ratio = productData.width / productData.height;
+      productData.type = ratio > 1.5 ? 'Landscape' : ratio < 0.7 ? 'Portrait' : 'Square';
     }
     
     return productData;
   }
 
-  // Yardımcı fonksiyonlar
   static extractNumber(text) {
     if (!text) return null;
-    const matches = text.match(/\d+/);
-    return matches ? parseInt(matches[0]) : null;
-  }
-
-  static generateLEDCode(productData) {
-    const prefix = productData.store ? productData.store.substring(0, 3).toUpperCase() : 'LED';
-    const timestamp = Date.now().toString().slice(-6);
-    const dimensions = productData.width && productData.height ? 
-      `_${productData.width}x${productData.height}` : '';
-    return `${prefix}${timestamp}${dimensions}`;
-  }
-
-  static categorizeByAspectRatio(ratio) {
-    if (ratio < 0.1) return 'Çok Dar Dikey';
-    if (ratio < 0.8) return 'Dikey';
-    if (ratio < 1.2) return 'Kare';
-    if (ratio < 7) return 'Yatay';
-    return 'Çok Geniş Yatay';
+    const match = text.match(/(\d+)/);
+    return match ? parseInt(match[1]) : null;
   }
 
   static determineMasterType(width, height) {
     const ratio = width / height;
-    if (ratio < 0.8) return 'Dikey';
-    if (ratio < 1.2) return 'Kare';
-    if (ratio < 2) return 'Yatay';
-    return 'Uzun';
-  }
-
-  // Scraping istatistikleri
-  static async getScrapingStats(req, res) {
-    try {
-      const [stats] = await db.execute(`
-        SELECT 
-          COUNT(*) as totalImports,
-          COUNT(CASE WHEN notlar LIKE '%Otomatik import%' THEN 1 END) as autoImports,
-          DATE(createdAt) as date,
-          COUNT(*) as dailyCount
-        FROM Ledler 
-        WHERE createdAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-        GROUP BY DATE(createdAt)
-        ORDER BY date DESC
-        LIMIT 30
-      `);
-      
-      res.json({
-        success: true,
-        stats: stats,
-        summary: {
-          last30Days: stats.reduce((sum, day) => sum + day.dailyCount, 0),
-          autoImportsRatio: stats.length > 0 ? 
-            (stats.reduce((sum, day) => sum + day.autoImports, 0) / stats.reduce((sum, day) => sum + day.dailyCount, 0) * 100).toFixed(1) + '%' : '0%'
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
+    if (ratio > 1.5) return 'Landscape Master';
+    if (ratio < 0.7) return 'Portrait Master';
+    return 'Square Master';
   }
 }
 
